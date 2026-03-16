@@ -138,10 +138,46 @@
                 <thead class="bg-gray-50 text-gray-700">
                     <tr>
                         <th class="px-4 py-3 text-left">Término</th>
-                        <th class="px-4 py-3 text-right">Posición prom.</th>
-                        <th class="px-4 py-3 text-right">Clicks</th>
-                        <th class="px-4 py-3 text-right">Impresiones</th>
-                        <th class="px-4 py-3 text-right">CTR</th>
+                        <th class="px-4 py-3 text-right">
+                            <button wire:click="sortTopQueries('avg_position')" type="button" class="inline-flex items-center gap-1 font-medium hover:text-gray-900 ml-auto">
+                                Posición prom.
+                                @if($querySortColumn === 'avg_position')
+                                    <span>{{ $querySortDirection === 'asc' ? '▲' : '▼' }}</span>
+                                @else
+                                    <span class="text-gray-400">⇅</span>
+                                @endif
+                            </button>
+                        </th>
+                        <th class="px-4 py-3 text-right">
+                            <button wire:click="sortTopQueries('clicks')" type="button" class="inline-flex items-center gap-1 font-medium hover:text-gray-900 ml-auto">
+                                Clicks
+                                @if($querySortColumn === 'clicks')
+                                    <span>{{ $querySortDirection === 'asc' ? '▲' : '▼' }}</span>
+                                @else
+                                    <span class="text-gray-400">⇅</span>
+                                @endif
+                            </button>
+                        </th>
+                        <th class="px-4 py-3 text-right">
+                            <button wire:click="sortTopQueries('impressions')" type="button" class="inline-flex items-center gap-1 font-medium hover:text-gray-900 ml-auto">
+                                Impresiones
+                                @if($querySortColumn === 'impressions')
+                                    <span>{{ $querySortDirection === 'asc' ? '▲' : '▼' }}</span>
+                                @else
+                                    <span class="text-gray-400">⇅</span>
+                                @endif
+                            </button>
+                        </th>
+                        <th class="px-4 py-3 text-right">
+                            <button wire:click="sortTopQueries('avg_ctr')" type="button" class="inline-flex items-center gap-1 font-medium hover:text-gray-900 ml-auto">
+                                CTR
+                                @if($querySortColumn === 'avg_ctr')
+                                    <span>{{ $querySortDirection === 'asc' ? '▲' : '▼' }}</span>
+                                @else
+                                    <span class="text-gray-400">⇅</span>
+                                @endif
+                            </button>
+                        </th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">

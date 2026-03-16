@@ -169,9 +169,19 @@ class SeoDashboardService
      *
      * @return array<int, array<string, mixed>>
      */
-    public function getTopQueries(Empresa $empresa, Carbon $from, Carbon $to, ?int $limit = null): array
+    public function getTopQueries(
+        Empresa $empresa,
+        Carbon $from,
+        Carbon $to,
+        ?int $limit = null,
+        string $sortColumn = 'clicks',
+        string $sortDirection = 'desc'
+    ): array
     {
         $limit = $limit ?: (int) config('seo.dashboard.top_queries_limit', 50);
+        $allowedColumns = ['clicks', 'impressions', 'avg_ctr', 'avg_position'];
+        $sortColumn = in_array($sortColumn, $allowedColumns, true) ? $sortColumn : 'clicks';
+        $sortDirection = $sortDirection === 'asc' ? 'asc' : 'desc';
 
         $rows = SeoGscQuery::query()
             ->where('empresa_id', $empresa->id)
@@ -184,7 +194,7 @@ class SeoDashboardService
                 COALESCE(AVG(avg_position), 0) AS avg_position
             ')
             ->groupBy('query')
-            ->orderByDesc('clicks')
+            ->orderBy($sortColumn, $sortDirection)
             ->limit($limit)
             ->get();
 

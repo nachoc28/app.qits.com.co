@@ -25,6 +25,12 @@ class EmpresaSeoDashboard extends Component
     /** @var array<int, array<string, mixed>> */
     public $topQueries = [];
 
+    /** @var string */
+    public $querySortColumn = 'clicks';
+
+    /** @var string */
+    public $querySortDirection = 'desc';
+
     /** @var array<int, array<string, mixed>> */
     public $topLandingPages = [];
 
@@ -60,7 +66,7 @@ class EmpresaSeoDashboard extends Component
     public function mount(Empresa $empresa, SeoDashboardService $dashboardService): void
     {
         if (! auth()->check()) {
-            abort(401);
+            abort(403);
         }
 
         /** @var \App\Models\User $user */
@@ -111,7 +117,14 @@ class EmpresaSeoDashboard extends Component
         $payload = $dashboardService->getDashboard($this->empresa, $from, $to)->toArray();
 
         $this->kpis = (array) ($payload['kpis'] ?? []);
-        $this->topQueries = (array) ($payload['top_queries'] ?? []);
+        $this->topQueries = $dashboardService->getTopQueries(
+            $this->empresa,
+            $from,
+            $to,
+            null,
+            (string) $this->querySortColumn,
+            (string) $this->querySortDirection
+        );
         $this->topLandingPages = (array) ($payload['top_landing_pages'] ?? []);
         $this->recentUtmConversions = (array) ($payload['recent_utm_conversions'] ?? []);
         $this->trends = (array) ($payload['trends'] ?? []);
@@ -141,5 +154,24 @@ class EmpresaSeoDashboard extends Component
     public function render()
     {
         return view('livewire.admin.seo.empresa-seo-dashboard');
+    }
+
+    // ── Top queries: sort ─────────────────────────────────────────────────────
+
+    public function sortTopQueries(string $column, SeoDashboardService $dashboardService): void
+    {
+        $allowed = ['clicks', 'impressions', 'avg_ctr', 'avg_position'];
+        if (! in_array($column, $allowed, true)) {
+            return;
+        }
+
+        if ($this->querySortColumn === $column) {
+            $this->querySortDirection = $this->querySortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            $this->querySortColumn = $column;
+            $this->querySortDirection = 'desc';
+        }
+
+        $this->loadDashboard($dashboardService);
     }
 }
