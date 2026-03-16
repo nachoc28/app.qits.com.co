@@ -208,6 +208,8 @@ class EmpresaSeoDashboard extends Component
                 return;
             }
 
+            fwrite($handle, "\xEF\xBB\xBF");
+
             fputcsv($handle, ['term', 'average_position', 'clicks', 'impressions', 'ctr']);
 
             foreach ($rows as $row) {
@@ -240,7 +242,7 @@ class EmpresaSeoDashboard extends Component
             $this->empresa,
             $from,
             $to,
-            0
+            PHP_INT_MAX
         );
 
         $fileName = sprintf(
