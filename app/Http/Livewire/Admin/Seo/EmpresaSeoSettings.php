@@ -42,6 +42,9 @@ class EmpresaSeoSettings extends Component
     /** @var array<int, string> */
     public $statusErrors = [];
 
+    /** @var bool */
+    public $isEditingConfiguration = false;
+
     protected function rules(): array
     {
         return [
@@ -89,6 +92,7 @@ class EmpresaSeoSettings extends Component
         $this->configurationStatus = $state->status;
         $this->statusWarnings = $state->warnings;
         $this->statusErrors = $state->errors;
+        $this->isEditingConfiguration = true;
 
         session()->flash('seo_settings_saved', 'Configuración SEO guardada correctamente.');
     }
@@ -108,6 +112,7 @@ class EmpresaSeoSettings extends Component
 
         $property = $state->property;
         if (! $property) {
+            $this->isEditingConfiguration = false;
             $this->siteUrl = null;
             $this->searchConsoleProperty = null;
             $this->ga4PropertyId = null;
@@ -118,6 +123,8 @@ class EmpresaSeoSettings extends Component
 
             return;
         }
+
+        $this->isEditingConfiguration = true;
 
         $this->siteUrl = $property->site_url;
         $this->searchConsoleProperty = $property->search_console_property;
