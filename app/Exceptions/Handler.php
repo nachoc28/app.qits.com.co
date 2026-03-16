@@ -2,6 +2,13 @@
 
 namespace App\Exceptions;
 
+use App\Exceptions\IntegrationSecurity\BusinessServiceDeniedException;
+use App\Exceptions\IntegrationSecurity\IntegrationInactiveException;
+use App\Exceptions\IntegrationSecurity\IntegrationNotFoundException;
+use App\Exceptions\IntegrationSecurity\InvalidSignatureException;
+use App\Exceptions\IntegrationSecurity\NonceReplayException;
+use App\Exceptions\IntegrationSecurity\RequestExpiredException;
+use App\Exceptions\IntegrationSecurity\ScopeDeniedException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Session\TokenMismatchException;
 use Throwable;
@@ -37,6 +44,39 @@ class Handler extends ExceptionHandler
     {
         $this->reportable(function (Throwable $e) {
             //
+        });
+
+        // ── Capa de seguridad de integraciones externas ───────────────────────
+        // 401 → credencial inválida o firma incorrecta (no revelar distinción)
+        $this->renderable(function (IntegrationNotFoundException $e, $request) {
+            return response()->json(['message' => 'Unauthorized.'], 401);
+        });
+
+        $this->renderable(function (InvalidSignatureException $e, $request) {
+            return response()->json(['message' => 'Unauthorized.'], 401);
+        });
+
+        $this->renderable(function (RequestExpiredException $e, $request) {
+            return response()->json(['message' => 'Request timestamp expired.'], 401);
+        });
+
+        $this->renderable(function (NonceReplayException $e, $request) {
+            return response()->json(['message' => 'Unauthorized.'], 401);
+        });
+
+        // 403 → integración reconocida pero suspendida/revocada
+        $this->renderable(function (IntegrationInactiveException $e, $request) {
+            return response()->json(['message' => 'Integration is not active.'], 403);
+        });
+
+        // 403 → scope técnico ausente en la integración
+        $this->renderable(function (ScopeDeniedException $e, $request) {
+            return response()->json(['message' => 'Access denied: insufficient scope.'], 403);
+        });
+
+        // 403 → la empresa no tiene contratado el servicio requerido
+        $this->renderable(function (BusinessServiceDeniedException $e, $request) {
+            return response()->json(['message' => 'Access denied: required service not active.'], 403);
         });
     }
 

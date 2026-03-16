@@ -21,6 +21,11 @@
                                             :active="request()->routeIs('admin.empresas')">
                                 Empresas
                             </x-jet-nav-link>
+
+                            <x-jet-nav-link href="{{ route('admin.seo') }}"
+                                            :active="request()->routeIs('admin.seo*')">
+                                SEO
+                            </x-jet-nav-link>
                         @endif
                     @endauth
                 </div>
@@ -153,6 +158,11 @@
                     <x-jet-responsive-nav-link href="{{ route('admin.empresas') }}"
                                                :active="request()->routeIs('admin.empresas')">
                         Empresas
+                    </x-jet-responsive-nav-link>
+
+                    <x-jet-responsive-nav-link href="{{ route('admin.seo') }}"
+                                               :active="request()->routeIs('admin.seo*')">
+                        SEO
                     </x-jet-responsive-nav-link>
                 @endif
             @endauth

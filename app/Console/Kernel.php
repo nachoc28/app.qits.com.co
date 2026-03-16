@@ -15,7 +15,10 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')->hourly();
+        $schedule
+            ->command('seo:sync --source=all --queue=' . (string) config('seo.sync.queue_name', 'seo-sync'))
+            ->cron((string) config('seo.sync.schedule_cron', '30 * * * *'))
+            ->withoutOverlapping();
     }
 
     /**
