@@ -7,6 +7,7 @@ use App\Models\Pais;
 use App\Models\Departamento;
 use App\Models\Ciudad;
 use App\Models\Empresa;
+use App\Models\Servicio;
 use App\Models\TipoUsuario;
 use App\Models\User;
 use Illuminate\Support\Facades\Storage;
@@ -80,6 +81,13 @@ class EmpresasManager extends Component
 
     public $showUserDeleteModal = false;
     public $userDeleteId = null;
+
+    // Servicios
+    public $showServicesModal = false;
+    public $selectedEmpresaId = null;
+    public $selectedEmpresaNombre = null;
+    public $availableServices = [];
+    public $selectedServices = [];
 
     protected function baseRules(): array
     {
@@ -578,6 +586,63 @@ public function cancelDeleteUser()
 {
     $this->showUserDeleteModal = false;
     $this->userDeleteId = null;
+}
+
+public function openServices($empresaId): void
+{
+    $empresa = Empresa::findOrFail($empresaId);
+
+    $this->selectedEmpresaId     = $empresa->id;
+    $this->selectedEmpresaNombre = $empresa->nombre;
+    $this->availableServices     = Servicio::where('activo', true)
+                                       ->orderBy('nombre')
+                                       ->get(['id', 'nombre', 'descripcion'])
+                                       ->toArray();
+    $this->selectedServices      = $empresa->servicios()
+                                       ->pluck('servicios.id')
+                                       ->map(fn ($id) => (string) $id)
+                                       ->toArray();
+
+    $this->showServicesModal = true;
+}
+
+public function saveServices(): void
+{
+    if (! $this->selectedEmpresaId) return;
+
+    $empresa = Empresa::findOrFail($this->selectedEmpresaId);
+    $empresa->servicios()->sync($this->selectedServices);
+
+    session()->flash('message', 'Servicios actualizados correctamente.');
+    $this->closeServicesModal();
+}
+
+public function closeServicesModal(): void
+{
+    $this->showServicesModal     = false;
+    $this->selectedEmpresaId     = null;
+    $this->selectedEmpresaNombre = null;
+    $this->availableServices     = [];
+    $this->selectedServices      = [];
+}
+
+public function destroy($id)
+{
+    $empresa = Empresa::findOrFail($id);
+
+    if ($empresa->proyectos()->exists()) {
+        session()->flash('message', 'No se puede eliminar la empresa porque tiene servicios/proyectos asociados.');
+        return;
+    }
+
+    $empresa->delete();
+
+    if ((int) $this->editingId === (int) $empresa->id) {
+        $this->showModal = false;
+        $this->resetForm();
+    }
+
+    session()->flash('message', 'Empresa eliminada correctamente.');
 }
 
 

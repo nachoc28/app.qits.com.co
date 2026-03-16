@@ -14,10 +14,10 @@
     @livewireStyles
     <link rel="stylesheet" href="{{ mix('css/app.css') }}">
 </head>
-<body class="font-sans antialiased">
+<body class="min-h-screen overflow-y-auto overflow-x-hidden bg-gray-100 font-sans antialiased">
     <x-jet-banner />
 
-    <div class="min-h-screen bg-gray-100">
+    <div class="min-h-screen">
         @livewire('navigation-menu')
 
         @if (isset($header))
@@ -28,7 +28,7 @@
             </header>
         @endif
 
-        <main>
+        <main class="flex-1">
             <form id="auto-logout-form" action="{{ route('logout') }}" method="POST" class="hidden">
                 @csrf
             </form>

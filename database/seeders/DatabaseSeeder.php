@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             CiudadesColombiaSeeder::class,
             TiposUsuariosSeeder::class,
             AdminAndApiUsersSeeder::class,
+            ServicioSeeder::class,
         ]);
     }
 }
