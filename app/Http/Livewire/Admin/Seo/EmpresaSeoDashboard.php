@@ -6,6 +6,7 @@ use App\Models\Empresa;
 use App\Services\Seo\SeoDashboardService;
 use App\Services\Seo\SeoPropertyConfigurationState;
 use Illuminate\Support\Carbon;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Livewire\Component;
 
 class EmpresaSeoDashboard extends Component
@@ -173,5 +174,103 @@ class EmpresaSeoDashboard extends Component
         }
 
         $this->loadDashboard($dashboardService);
+    }
+
+    public function exportTopQueriesCsv(SeoDashboardService $dashboardService): StreamedResponse
+    {
+        $this->validate();
+
+        $this->syncConfigurationState($dashboardService);
+        abort_unless($this->canShowDashboard, 403);
+
+        $from = Carbon::parse($this->dateFrom)->startOfDay();
+        $to = Carbon::parse($this->dateTo)->startOfDay();
+
+        $rows = $dashboardService->getTopQueries(
+            $this->empresa,
+            $from,
+            $to,
+            0,
+            (string) $this->querySortColumn,
+            (string) $this->querySortDirection
+        );
+
+        $fileName = sprintf(
+            'seo-top-queries-%d-%s-%s.csv',
+            (int) $this->empresa->id,
+            $from->toDateString(),
+            $to->toDateString()
+        );
+
+        return response()->streamDownload(function () use ($rows): void {
+            $handle = fopen('php://output', 'w');
+            if ($handle === false) {
+                return;
+            }
+
+            fputcsv($handle, ['term', 'average_position', 'clicks', 'impressions', 'ctr']);
+
+            foreach ($rows as $row) {
+                fputcsv($handle, [
+                    (string) ($row['query'] ?? ''),
+                    (float) ($row['avg_position'] ?? 0),
+                    (int) ($row['clicks'] ?? 0),
+                    (int) ($row['impressions'] ?? 0),
+                    (float) ($row['avg_ctr'] ?? 0),
+                ]);
+            }
+
+            fclose($handle);
+        }, $fileName, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    public function exportTopLandingPagesCsv(SeoDashboardService $dashboardService): StreamedResponse
+    {
+        $this->validate();
+
+        $this->syncConfigurationState($dashboardService);
+        abort_unless($this->canShowDashboard, 403);
+
+        $from = Carbon::parse($this->dateFrom)->startOfDay();
+        $to = Carbon::parse($this->dateTo)->startOfDay();
+
+        $rows = $dashboardService->getTopLandingPages(
+            $this->empresa,
+            $from,
+            $to,
+            0
+        );
+
+        $fileName = sprintf(
+            'seo-top-pages-%d-%s-%s.csv',
+            (int) $this->empresa->id,
+            $from->toDateString(),
+            $to->toDateString()
+        );
+
+        return response()->streamDownload(function () use ($rows): void {
+            $handle = fopen('php://output', 'w');
+            if ($handle === false) {
+                return;
+            }
+
+            fputcsv($handle, ['page', 'users', 'sessions', 'conversions', 'engagement_rate']);
+
+            foreach ($rows as $row) {
+                fputcsv($handle, [
+                    (string) ($row['landing_page'] ?? ''),
+                    (int) ($row['users'] ?? 0),
+                    (int) ($row['sessions'] ?? 0),
+                    (int) ($row['conversions'] ?? 0),
+                    (float) ($row['engagement_rate'] ?? 0),
+                ]);
+            }
+
+            fclose($handle);
+        }, $fileName, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
     }
 }

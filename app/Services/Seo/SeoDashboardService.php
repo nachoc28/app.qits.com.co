@@ -178,12 +178,12 @@ class SeoDashboardService
         string $sortDirection = 'desc'
     ): array
     {
-        $limit = $limit ?: (int) config('seo.dashboard.top_queries_limit', 50);
+        $limit = is_null($limit) ? (int) config('seo.dashboard.top_queries_limit', 50) : (int) $limit;
         $allowedColumns = ['clicks', 'impressions', 'avg_ctr', 'avg_position'];
         $sortColumn = in_array($sortColumn, $allowedColumns, true) ? $sortColumn : 'clicks';
         $sortDirection = $sortDirection === 'asc' ? 'asc' : 'desc';
 
-        $rows = SeoGscQuery::query()
+        $query = SeoGscQuery::query()
             ->where('empresa_id', $empresa->id)
             ->whereBetween('metric_date', [$from->toDateString(), $to->toDateString()])
             ->selectRaw('
@@ -194,9 +194,13 @@ class SeoDashboardService
                 COALESCE(AVG(avg_position), 0) AS avg_position
             ')
             ->groupBy('query')
-            ->orderBy($sortColumn, $sortDirection)
-            ->limit($limit)
-            ->get();
+            ->orderBy($sortColumn, $sortDirection);
+
+        if ($limit > 0) {
+            $query->limit($limit);
+        }
+
+        $rows = $query->get();
 
         $out = [];
         foreach ($rows as $row) {
@@ -219,9 +223,9 @@ class SeoDashboardService
      */
     public function getTopLandingPages(Empresa $empresa, Carbon $from, Carbon $to, ?int $limit = null): array
     {
-        $limit = $limit ?: (int) config('seo.dashboard.top_landings_limit', 50);
+        $limit = is_null($limit) ? (int) config('seo.dashboard.top_landings_limit', 50) : (int) $limit;
 
-        $rows = SeoGa4LandingPage::query()
+        $query = SeoGa4LandingPage::query()
             ->where('empresa_id', $empresa->id)
             ->whereBetween('metric_date', [$from->toDateString(), $to->toDateString()])
             ->selectRaw('
@@ -232,9 +236,13 @@ class SeoDashboardService
                 COALESCE(AVG(engagement_rate), 0)     AS engagement_rate
             ')
             ->groupBy('landing_page')
-            ->orderByDesc('sessions')
-            ->limit($limit)
-            ->get();
+            ->orderByDesc('sessions');
+
+        if ($limit > 0) {
+            $query->limit($limit);
+        }
+
+        $rows = $query->get();
 
         $out = [];
         foreach ($rows as $row) {

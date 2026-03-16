@@ -130,8 +130,20 @@
     </div>
 
     <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5 sm:p-6">
-        <h3 class="text-base font-semibold text-gray-900">Términos de búsqueda con mejor ranking</h3>
-        <p class="mt-1 text-sm text-gray-500">Consulta, posición promedio, clicks, impresiones y CTR.</p>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+                <h3 class="text-base font-semibold text-gray-900">Términos de búsqueda con mejor ranking</h3>
+                <p class="mt-1 text-sm text-gray-500">Consulta, posición promedio, clicks, impresiones y CTR.</p>
+            </div>
+
+            <button
+                type="button"
+                wire:click="exportTopQueriesCsv"
+                class="inline-flex items-center justify-center rounded-md border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+            >
+                Export CSV
+            </button>
+        </div>
 
         <div class="mt-4 hidden sm:block rounded-xl border border-gray-200 overflow-x-auto">
             <table class="min-w-[900px] w-full text-sm">
@@ -215,7 +227,17 @@
 
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5 sm:p-6">
-            <h3 class="text-base font-semibold text-gray-900">Top landing pages</h3>
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <h3 class="text-base font-semibold text-gray-900">Top landing pages</h3>
+
+                <button
+                    type="button"
+                    wire:click="exportTopLandingPagesCsv"
+                    class="inline-flex items-center justify-center rounded-md border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                    Export pages CSV
+                </button>
+            </div>
             <div class="mt-4 space-y-3">
                 @forelse($topLandingPages as $row)
                     <div class="rounded-lg border border-gray-200 p-3">
