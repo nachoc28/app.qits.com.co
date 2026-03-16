@@ -1,9 +1,10 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Models\User;
+use App\Http\Controllers\Integrations\GoogleOAuthController;
 use App\Models\Empresa;
+use App\Models\User;
 use App\Services\Seo\SeoPropertyConfigurationService;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -84,6 +85,9 @@ Route::middleware([
         return view('admin.seo.empresa-dashboard', compact('empresa'));
     })->name('admin.seo.empresa-dashboard');
 });
+
+Route::get('/google/connect', [GoogleOAuthController::class, 'connect']);
+Route::get('/google/callback', [GoogleOAuthController::class, 'callback']);
 
 if (app()->environment('local')) {
     Route::get('/dev/reseed-api-token', function () {

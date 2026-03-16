@@ -8,8 +8,15 @@
     <div class="rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm ring-1 ring-blue-100 sm:p-6">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-                <h3 class="text-base font-semibold text-blue-900">Configuración SEO por empresa</h3>
-                <p class="mt-1 text-sm text-blue-800">Aquí solo se definen URLs, propiedades e indicadores de origen para esta empresa. La autenticación y conectividad con Google se administran globalmente en el sistema.</p>
+                <h3 class="text-base font-semibold text-blue-900">
+                    {{ $isEditingConfiguration ? 'Editar configuración SEO' : 'Configurar SEO por primera vez' }}
+                </h3>
+                <p class="mt-1 text-sm text-blue-800">
+                    {{ $isEditingConfiguration
+                        ? 'Estás editando una configuración SEO existente para esta empresa.'
+                        : 'Estás realizando la configuración inicial SEO para esta empresa.' }}
+                    Aquí solo se definen URLs, propiedades e indicadores de origen. La autenticación y conectividad con Google se administran globalmente en el sistema.
+                </p>
             </div>
 
             @if(auth()->check() && auth()->user()->isAdmin())
@@ -146,7 +153,7 @@
 
         <div class="mt-6 flex items-center justify-end">
             <button type="submit" class="inline-flex items-center rounded-md bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-                Guardar configuración SEO
+                {{ $isEditingConfiguration ? 'Actualizar configuración SEO' : 'Guardar configuración SEO' }}
             </button>
         </div>
     </form>

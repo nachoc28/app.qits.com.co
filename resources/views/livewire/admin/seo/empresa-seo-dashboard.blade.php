@@ -1,4 +1,18 @@
 <div class="space-y-6">
+    <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5 sm:p-6">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <h3 class="text-base font-semibold text-gray-900">Dashboard SEO</h3>
+                <p class="mt-1 text-sm text-gray-500">Revisa métricas y, cuando necesites cambiar mapeos de propiedad o flags, entra a la configuración SEO.</p>
+            </div>
+
+            <a href="{{ route('admin.seo.empresa-settings', $empresa) }}"
+               class="inline-flex items-center rounded-md border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100">
+                Editar configuración SEO
+            </a>
+        </div>
+    </div>
+
     @if($configurationStatus === 'not_configured')
         <div class="rounded-2xl border border-blue-200 bg-blue-50 p-5 sm:p-6">
             <h3 class="text-base font-semibold text-blue-900">SEO no configurado</h3>
