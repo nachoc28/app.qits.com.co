@@ -159,6 +159,10 @@
                                                         Servicios
                                                     </button>
 
+                                                    <button type="button" class="block w-full px-4 py-2 text-left text-sm hover:bg-gray-50" onclick="@this.call('openWpIntegration', {{ $e->id }})" @click="open = false">
+                                                        WordPress UTM Integration
+                                                    </button>
+
                                                     <div class="my-1 border-t border-gray-100"></div>
 
                                                     <button
@@ -281,6 +285,14 @@
                             wire:click="openServices({{ $e->id }})"
                         >
                             Servicios
+                        </button>
+
+                        <button
+                            type="button"
+                            class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                            wire:click="openWpIntegration({{ $e->id }})"
+                        >
+                            WP UTM
                         </button>
 
                         <button
@@ -822,6 +834,112 @@
                     Guardar
                 </x-jet-button>
             </div>
+        </x-slot>
+    </x-jet-dialog-modal>
+
+    {{-- Modal integración WordPress UTM --}}
+    <x-jet-dialog-modal wire:model="showWpIntegrationModal" maxWidth="2xl">
+        <x-slot name="title">
+            <div class="pr-6">
+                <div class="font-semibold">WordPress UTM Integration</div>
+                <div class="break-words text-sm font-normal text-gray-500">{{ $wpEmpresaNombre }}</div>
+            </div>
+        </x-slot>
+
+        <x-slot name="content">
+            <div class="max-h-[70vh] space-y-4 overflow-y-auto overflow-x-hidden pr-1">
+                <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                    Nota de seguridad: el client secret solo se muestra al generarlo o regenerarlo. Luego no podrá consultarse nuevamente.
+                </div>
+
+                @if($wpPlainSecret)
+                    <div class="rounded-xl border border-green-200 bg-green-50 p-4">
+                        <div class="text-sm font-semibold text-green-800">Client secret generado</div>
+                        <div class="mt-2 rounded-md bg-white px-3 py-2 font-mono text-sm break-all text-gray-900 ring-1 ring-green-200">
+                            {{ $wpPlainSecret }}
+                        </div>
+                    </div>
+                @endif
+
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div class="rounded-xl border border-gray-200 p-4">
+                        <div class="text-xs uppercase tracking-wide text-gray-500">Empresa</div>
+                        <div class="mt-1 break-words text-sm font-medium text-gray-900">{{ $wpEmpresaNombre ?: '-' }}</div>
+                    </div>
+
+                    <div class="rounded-xl border border-gray-200 p-4">
+                        <div class="text-xs uppercase tracking-wide text-gray-500">Scope asignado</div>
+                        <div class="mt-1 break-words font-mono text-sm text-gray-900">{{ $wpIntegrationScope ?: 'seo.utm_conversions_ingest' }}</div>
+                    </div>
+
+                    <div class="rounded-xl border border-gray-200 p-4 md:col-span-2">
+                        <div class="text-xs uppercase tracking-wide text-gray-500">Public key actual</div>
+                        <div class="mt-2 rounded-md bg-gray-50 px-3 py-2 font-mono text-sm break-all text-gray-900 ring-1 ring-gray-200">
+                            {{ $wpIntegrationPublicKey ?: 'Sin generar' }}
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border border-gray-200 p-4">
+                        <div class="text-xs uppercase tracking-wide text-gray-500">Estado</div>
+                        <div class="mt-2">
+                            @if($wpIntegrationStatus === 'active')
+                                <span class="inline-flex rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">Activa</span>
+                            @elseif($wpIntegrationStatus === 'suspended')
+                                <span class="inline-flex rounded-full bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800">Suspendida</span>
+                            @elseif($wpIntegrationStatus === 'revoked')
+                                <span class="inline-flex rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-800">Revocada</span>
+                            @else
+                                <span class="inline-flex rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">Sin integración</span>
+                            @endif
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border border-gray-200 p-4">
+                        <div class="text-xs uppercase tracking-wide text-gray-500">Último uso</div>
+                        <div class="mt-1 break-words text-sm text-gray-900">{{ $wpIntegrationLastUsedAt ?: 'Sin uso registrado' }}</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    @if(!$wpIntegrationExists)
+                        <x-jet-button class="w-full justify-center" wire:click="createWpIntegration">
+                            Crear integración
+                        </x-jet-button>
+                    @else
+                        <x-jet-secondary-button class="w-full justify-center" wire:click="refreshWpIntegrationState">
+                            Actualizar estado
+                        </x-jet-secondary-button>
+
+                        <x-jet-button class="w-full justify-center" wire:click="rotateWpSecret">
+                            Regenerar client secret
+                        </x-jet-button>
+
+                        @if($wpIntegrationStatus !== 'active')
+                            <x-jet-button class="w-full justify-center" wire:click="activateWpIntegration">
+                                Activar
+                            </x-jet-button>
+                        @endif
+
+                        @if($wpIntegrationStatus === 'active')
+                            <x-jet-secondary-button class="w-full justify-center" wire:click="suspendWpIntegration">
+                                Suspender
+                            </x-jet-secondary-button>
+                        @endif
+
+                        @if($wpIntegrationStatus !== 'revoked')
+                            <x-jet-danger-button class="w-full justify-center" wire:click="revokeWpIntegration">
+                                Revocar
+                            </x-jet-danger-button>
+                        @endif
+                    @endif
+                </div>
+            </div>
+        </x-slot>
+
+        <x-slot name="footer">
+            <x-jet-secondary-button wire:click="closeWpIntegration">
+                Cerrar
+            </x-jet-secondary-button>
         </x-slot>
     </x-jet-dialog-modal>
 </div>

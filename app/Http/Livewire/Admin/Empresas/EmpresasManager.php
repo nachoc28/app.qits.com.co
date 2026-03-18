@@ -7,9 +7,12 @@ use App\Models\Pais;
 use App\Models\Departamento;
 use App\Models\Ciudad;
 use App\Models\Empresa;
+use App\Models\EmpresaIntegration;
 use App\Models\Servicio;
 use App\Models\TipoUsuario;
 use App\Models\User;
+use App\Services\IntegrationSecurity\IntegrationCredentialService;
+use App\Support\IntegrationSecurity\IntegrationModule;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -88,6 +91,18 @@ class EmpresasManager extends Component
     public $selectedEmpresaNombre = null;
     public $availableServices = [];
     public $selectedServices = [];
+
+    // Integración WordPress UTM
+    public $showWpIntegrationModal = false;
+    public $wpEmpresaId = null;
+    public $wpEmpresaNombre = null;
+    public $wpIntegrationId = null;
+    public $wpIntegrationPublicKey = null;
+    public $wpIntegrationStatus = null;
+    public $wpIntegrationLastUsedAt = null;
+    public $wpIntegrationScope = null;
+    public $wpIntegrationExists = false;
+    public $wpPlainSecret = null;
 
     protected function baseRules(): array
     {
@@ -624,6 +639,164 @@ public function closeServicesModal(): void
     $this->selectedEmpresaNombre = null;
     $this->availableServices     = [];
     $this->selectedServices      = [];
+}
+
+public function openWpIntegration($empresaId): void
+{
+    $empresa = Empresa::findOrFail($empresaId);
+
+    $this->wpEmpresaId = $empresa->id;
+    $this->wpEmpresaNombre = $empresa->nombre;
+    $this->wpIntegrationScope = IntegrationModule::SEO_UTM_CONVERSIONS_INGEST;
+    $this->showWpIntegrationModal = true;
+
+    $this->refreshWpIntegrationState();
+}
+
+public function closeWpIntegration(): void
+{
+    $this->showWpIntegrationModal = false;
+    $this->wpEmpresaId = null;
+    $this->wpEmpresaNombre = null;
+    $this->wpIntegrationId = null;
+    $this->wpIntegrationPublicKey = null;
+    $this->wpIntegrationStatus = null;
+    $this->wpIntegrationLastUsedAt = null;
+    $this->wpIntegrationScope = null;
+    $this->wpIntegrationExists = false;
+    $this->wpPlainSecret = null;
+}
+
+public function refreshWpIntegrationState(bool $preserveSecret = false): void
+{
+    if (! $this->wpEmpresaId) return;
+
+    if (! $preserveSecret) {
+        $this->wpPlainSecret = null;
+    }
+
+    $integration = $this->resolveWpIntegration($this->wpEmpresaId);
+
+    if (! $integration) {
+        $this->wpIntegrationId = null;
+        $this->wpIntegrationPublicKey = null;
+        $this->wpIntegrationStatus = null;
+        $this->wpIntegrationLastUsedAt = null;
+        $this->wpIntegrationExists = false;
+        $this->wpIntegrationScope = IntegrationModule::SEO_UTM_CONVERSIONS_INGEST;
+
+        return;
+    }
+
+    $service = app(IntegrationCredentialService::class);
+    $integration = $service->ensureScope($integration, IntegrationModule::SEO_UTM_CONVERSIONS_INGEST);
+
+    $this->wpIntegrationId = $integration->id;
+    $this->wpIntegrationPublicKey = $integration->public_key;
+    $this->wpIntegrationStatus = $integration->status;
+    $this->wpIntegrationLastUsedAt = optional($integration->last_used_at)->format('Y-m-d H:i:s');
+    $this->wpIntegrationExists = true;
+    $this->wpIntegrationScope = IntegrationModule::SEO_UTM_CONVERSIONS_INGEST;
+}
+
+public function createWpIntegration(): void
+{
+    if (! $this->wpEmpresaId) return;
+
+    $existing = $this->resolveWpIntegration($this->wpEmpresaId);
+    if ($existing) {
+        $this->refreshWpIntegrationState();
+        session()->flash('message', 'La integración WordPress UTM ya existe para esta empresa.');
+        return;
+    }
+
+    $empresa = Empresa::findOrFail($this->wpEmpresaId);
+    $service = app(IntegrationCredentialService::class);
+    $issued = $service->createWordpressUtm($empresa);
+
+    $this->wpPlainSecret = $issued->plainSecret;
+    $this->refreshWpIntegrationState(true);
+
+    session()->flash('message', 'Integración WordPress UTM creada correctamente. Copia el secreto ahora, no se mostrará nuevamente.');
+}
+
+public function activateWpIntegration(): void
+{
+    if (! $this->wpEmpresaId) return;
+
+    $integration = $this->resolveWpIntegration($this->wpEmpresaId);
+    if (! $integration) return;
+
+    $service = app(IntegrationCredentialService::class);
+    $service->activate($integration);
+
+    $this->refreshWpIntegrationState();
+    session()->flash('message', 'Integración activada.');
+}
+
+public function suspendWpIntegration(): void
+{
+    if (! $this->wpEmpresaId) return;
+
+    $integration = $this->resolveWpIntegration($this->wpEmpresaId);
+    if (! $integration) return;
+
+    $service = app(IntegrationCredentialService::class);
+    $service->deactivate($integration);
+
+    $this->refreshWpIntegrationState();
+    session()->flash('message', 'Integración suspendida.');
+}
+
+public function revokeWpIntegration(): void
+{
+    if (! $this->wpEmpresaId) return;
+
+    $integration = $this->resolveWpIntegration($this->wpEmpresaId);
+    if (! $integration) return;
+
+    $service = app(IntegrationCredentialService::class);
+    $service->revoke($integration);
+
+    $this->refreshWpIntegrationState();
+    session()->flash('message', 'Integración revocada.');
+}
+
+public function rotateWpSecret(): void
+{
+    if (! $this->wpEmpresaId) return;
+
+    $integration = $this->resolveWpIntegration($this->wpEmpresaId);
+    if (! $integration) return;
+
+    $service = app(IntegrationCredentialService::class);
+    $issued = $service->rotateSecret($integration);
+
+    $this->wpPlainSecret = $issued->plainSecret;
+    $this->refreshWpIntegrationState(true);
+
+    session()->flash('message', 'Secreto regenerado. Copia el valor ahora, no se mostrará nuevamente.');
+}
+
+private function resolveWpIntegration(int $empresaId): ?EmpresaIntegration
+{
+    $integrations = EmpresaIntegration::query()
+        ->where('empresa_id', $empresaId)
+        ->orderByDesc('id')
+        ->get();
+
+    return $integrations->first(function (EmpresaIntegration $integration) {
+        if ($integration->provider_type === 'wordpress') {
+            return true;
+        }
+
+        $scopes = $integration->scopes_json ?? [];
+        if (! is_array($scopes)) {
+            $scopes = [];
+        }
+
+        return in_array(IntegrationModule::SEO_UTM_CONVERSIONS_INGEST, $scopes, true);
+    });
 }
 
 public function destroy($id)

@@ -6,6 +6,7 @@ use App\Models\Empresa;
 use App\Models\EmpresaIntegration;
 use App\Services\IntegrationSecurity\IntegrationCredentialIssueResult;
 use App\Support\IntegrationSecurity\IntegrationCredentialGenerator;
+use App\Support\IntegrationSecurity\IntegrationModule;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 
@@ -101,6 +102,41 @@ class IntegrationCredentialService
     public function activate(EmpresaIntegration $integration): EmpresaIntegration
     {
         $integration->forceFill(['status' => 'active'])->save();
+
+        return $integration->fresh();
+    }
+
+    /**
+     * Crea una integración preconfigurada para el plugin WordPress UTM.
+     */
+    public function createWordpressUtm(Empresa $empresa): IntegrationCredentialIssueResult
+    {
+        return $this->create($empresa, [
+            'name' => 'WordPress UTM Tracker',
+            'provider_type' => 'wordpress',
+            'status' => 'active',
+            'scopes_json' => [IntegrationModule::SEO_UTM_CONVERSIONS_INGEST],
+            'rate_limit_profile' => 'normal',
+        ]);
+    }
+
+    /**
+     * Garantiza que la integración tenga un scope específico sin duplicados.
+     */
+    public function ensureScope(EmpresaIntegration $integration, string $scope): EmpresaIntegration
+    {
+        $currentScopes = $integration->scopes_json ?? [];
+
+        if (! is_array($currentScopes)) {
+            $currentScopes = [];
+        }
+
+        if (! in_array($scope, $currentScopes, true)) {
+            $currentScopes[] = $scope;
+            $integration->forceFill([
+                'scopes_json' => array_values(array_unique($currentScopes)),
+            ])->save();
+        }
 
         return $integration->fresh();
     }
