@@ -6,6 +6,7 @@ use App\Services\Google\GoogleClientFactory;
 use App\Services\Google\GoogleOAuthTokenService;
 use RuntimeException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Cliente de Google Search Console para SIGC QITS.
@@ -222,6 +223,18 @@ class SearchConsoleClientService
         $request = $this->buildRequestObject($payload);
 
         $response = $service->searchanalytics->query($property, $request);
+
+        $rawResponse = json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if (! is_string($rawResponse) || $rawResponse === '') {
+            $rawResponse = (string) print_r($response, true);
+        }
+
+        Log::info('Google Search Console query response', [
+            'property' => $property,
+            'date_range' => $from->toDateString() . ' to ' . $to->toDateString(),
+            'raw_response_first_500' => mb_substr($rawResponse, 0, 500),
+        ]);
+
         $rows = method_exists($response, 'getRows') ? $response->getRows() : [];
 
         if (! is_array($rows)) {
