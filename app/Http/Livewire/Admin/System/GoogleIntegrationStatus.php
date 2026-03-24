@@ -21,6 +21,15 @@ class GoogleIntegrationStatus extends Component
     public $connectionTestPassed = false;
 
     /** @var string */
+    public $refreshTokenSource = 'env';
+
+    /** @var bool */
+    public $refreshTokenPresent = false;
+
+    /** @var bool */
+    public $dbEncryptedRefreshTokenPresent = false;
+
+    /** @var string */
     public $healthState = GoogleConnectionHealthStatus::STATE_NOT_CONFIGURED;
 
     /** @var string|null */
@@ -84,6 +93,15 @@ class GoogleIntegrationStatus extends Component
         $this->healthState = $status->state;
         $this->connectionTestPassed = $status->isConnected();
         $this->lastCheckedAt = isset($status->meta['checked_at']) ? (string) $status->meta['checked_at'] : null;
+        $this->refreshTokenSource = isset($status->meta['refresh_token_source'])
+            ? (string) $status->meta['refresh_token_source']
+            : 'env';
+        $this->refreshTokenPresent = isset($status->meta['refresh_token_present'])
+            ? (bool) $status->meta['refresh_token_present']
+            : false;
+        $this->dbEncryptedRefreshTokenPresent = isset($status->meta['db_encrypted_refresh_token_present'])
+            ? (bool) $status->meta['db_encrypted_refresh_token_present']
+            : false;
     }
 
     private function syncLastKnownStatus(?GoogleConnectionHealthStatus $status): void

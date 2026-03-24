@@ -30,6 +30,16 @@ class GoogleConnectionHealthService
     public function diagnose(): GoogleConnectionHealthStatus
     {
         $checkedAt = now()->toDateTimeString();
+        $refreshTokenDiagnostics = $this->tokenService->refreshTokenDiagnostics();
+
+        $baseMeta = [
+            'provider' => 'google',
+            'auth_mode' => 'oauth_refresh_token',
+            'checked_at' => $checkedAt,
+            'refresh_token_source' => (string) $refreshTokenDiagnostics['source'],
+            'refresh_token_present' => (bool) $refreshTokenDiagnostics['present'],
+            'db_encrypted_refresh_token_present' => (bool) $refreshTokenDiagnostics['db_encrypted_present'],
+        ];
 
         $requiredKeys = [
             'client_id',
@@ -64,11 +74,7 @@ class GoogleConnectionHealthService
                 $checks,
                 $missing,
                 [],
-                [
-                    'provider' => 'google',
-                    'auth_mode' => 'oauth_refresh_token',
-                    'checked_at' => $checkedAt,
-                ]
+                $baseMeta
             ));
         }
 
@@ -78,11 +84,7 @@ class GoogleConnectionHealthService
                 $checks,
                 $missing,
                 [],
-                [
-                    'provider' => 'google',
-                    'auth_mode' => 'oauth_refresh_token',
-                    'checked_at' => $checkedAt,
-                ]
+                $baseMeta
             ));
         }
 
@@ -120,11 +122,7 @@ class GoogleConnectionHealthService
                 $checks,
                 [],
                 [],
-                [
-                    'provider' => 'google',
-                    'auth_mode' => 'oauth_refresh_token',
-                    'checked_at' => $checkedAt,
-                ]
+                $baseMeta
             ));
         } catch (Throwable $e) {
             $errors[] = $e->getMessage();
@@ -134,12 +132,9 @@ class GoogleConnectionHealthService
                 $checks,
                 [],
                 $errors,
-                [
-                    'provider' => 'google',
-                    'auth_mode' => 'oauth_refresh_token',
-                    'checked_at' => $checkedAt,
+                array_merge($baseMeta, [
                     'exception' => get_class($e),
-                ]
+                ])
             ));
         }
     }

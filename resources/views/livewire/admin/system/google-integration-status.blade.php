@@ -64,6 +64,27 @@
                 {{ $connectionTestPassed ? 'OK' : 'Falló' }}
             </p>
         </div>
+
+        <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
+            <p class="text-sm font-medium text-gray-600">Fuente refresh token</p>
+            <p class="mt-3 text-2xl font-semibold {{ $refreshTokenSource === 'database' ? 'text-green-600' : 'text-yellow-700' }}">
+                {{ $refreshTokenSource === 'database' ? 'database' : 'env' }}
+            </p>
+        </div>
+
+        <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
+            <p class="text-sm font-medium text-gray-600">Refresh token presente</p>
+            <p class="mt-3 text-2xl font-semibold {{ $refreshTokenPresent ? 'text-green-600' : 'text-red-600' }}">
+                {{ $refreshTokenPresent ? 'Sí' : 'No' }}
+            </p>
+        </div>
+
+        <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
+            <p class="text-sm font-medium text-gray-600">Valor cifrado en BD</p>
+            <p class="mt-3 text-2xl font-semibold {{ $dbEncryptedRefreshTokenPresent ? 'text-green-600' : 'text-red-600' }}">
+                {{ $dbEncryptedRefreshTokenPresent ? 'Sí' : 'No' }}
+            </p>
+        </div>
     </div>
 
     <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5 sm:p-6">

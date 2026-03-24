@@ -3,6 +3,9 @@
 namespace App\Services\Google;
 
 use App\Exceptions\Google\GoogleAuthenticationException;
+use App\Models\Empresa;
+use App\Models\EmpresaIntegration;
+use Illuminate\Support\Facades\Crypt;
 
 /**
  * Servicio global de autenticacion OAuth2 para Google.
@@ -87,11 +90,41 @@ class GoogleOAuthTokenService
     }
 
     /**
+     * @return array{source:string,present:bool,db_encrypted_present:bool}
+     */
+    public function refreshTokenDiagnostics(): array
+    {
+        $google = (array) config('google.oauth', []);
+        $envRefreshToken = isset($google['refresh_token']) ? trim((string) $google['refresh_token']) : '';
+
+        $db = $this->readRefreshTokenFromDatabase();
+
+        if ($db['token'] !== '') {
+            return [
+                'source' => 'database',
+                'present' => true,
+                'db_encrypted_present' => $db['encrypted_present'],
+            ];
+        }
+
+        return [
+            'source' => 'env',
+            'present' => $envRefreshToken !== '',
+            'db_encrypted_present' => $db['encrypted_present'],
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function oauthConfig(): array
     {
         $google = (array) config('google.oauth', []);
+
+        $db = $this->readRefreshTokenFromDatabase();
+        if ($db['token'] !== '') {
+            $google['refresh_token'] = $db['token'];
+        }
 
         // Fallback para convencion Laravel en config/services.php.
         if ($google === []) {
@@ -99,6 +132,66 @@ class GoogleOAuthTokenService
         }
 
         return $google;
+    }
+
+    /**
+     * @return array{token:string,encrypted_present:bool}
+     */
+    private function readRefreshTokenFromDatabase(): array
+    {
+        try {
+            $empresaId = Empresa::query()
+                ->where('is_internal', true)
+                ->value('id');
+
+            if (! $empresaId) {
+                $empresaId = Empresa::query()->orderBy('id')->value('id');
+            }
+
+            if (! $empresaId) {
+                return [
+                    'token' => '',
+                    'encrypted_present' => false,
+                ];
+            }
+
+            $integration = EmpresaIntegration::query()
+                ->where('empresa_id', (int) $empresaId)
+                ->where('provider_type', 'google_oauth')
+                ->orderByDesc('id')
+                ->first();
+
+            if (! $integration) {
+                return [
+                    'token' => '',
+                    'encrypted_present' => false,
+                ];
+            }
+
+            $meta = is_array($integration->meta_json) ? $integration->meta_json : [];
+            $encryptedToken = isset($meta['google_refresh_token_encrypted'])
+                ? trim((string) $meta['google_refresh_token_encrypted'])
+                : '';
+
+            if ($encryptedToken === '') {
+                return [
+                    'token' => '',
+                    'encrypted_present' => false,
+                ];
+            }
+
+            $decrypted = trim((string) Crypt::decryptString($encryptedToken));
+
+            return [
+                'token' => $decrypted,
+                'encrypted_present' => true,
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'token' => '',
+                'encrypted_present' => false,
+            ];
+        }
     }
 
     /**
