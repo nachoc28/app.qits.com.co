@@ -105,6 +105,12 @@
                 >
                 <p class="mt-1 text-xs text-gray-500">Mapeo de la propiedad que usará esta empresa. Obligatorio si GSC Enabled está activo.</p>
                 @error('searchConsoleProperty') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                <button type="button" wire:click="testGscConnection" wire:loading.attr="disabled" class="mt-2 inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                    @if($testGscLoading)
+                        <span class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-r-gray-700 mr-2"></span>
+                    @endif
+                    Test Search Console API
+                </button>
             </div>
 
             <div class="min-w-0">
@@ -118,6 +124,12 @@
                 >
                 <p class="mt-1 text-xs text-gray-500">Identificador GA4 asociado a esta empresa. Obligatorio si GA4 Enabled está activo.</p>
                 @error('ga4PropertyId') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                <button type="button" wire:click="testGa4Connection" wire:loading.attr="disabled" class="mt-2 inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                    @if($testGa4Loading)
+                        <span class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-r-gray-700 mr-2"></span>
+                    @endif
+                    Test GA4 API
+                </button>
             </div>
         </div>
 
@@ -146,6 +158,58 @@
                 </span>
             </label>
         </div>
+
+        @if($testGscError)
+            <div class="mt-6 rounded-lg border border-red-200 bg-red-50 p-4">
+                <p class="text-sm font-medium text-red-800">Error en Test GSC</p>
+                <p class="mt-1 text-sm text-red-700">{{ $testGscError }}</p>
+            </div>
+        @endif
+
+        @if($testGscResult && !$testGscError)
+            <div class="mt-6 rounded-lg border border-green-200 bg-green-50 p-4">
+                <p class="text-sm font-medium text-green-800">Test GSC Exitoso</p>
+                <div class="mt-2 text-xs text-green-700 space-y-1">
+                    <p><strong>Propiedad:</strong> {{ $testGscResult['property'] }}</p>
+                    <p><strong>Rango:</strong> {{ $testGscResult['dateRange'] }}</p>
+                    <p><strong>Filas retornadas:</strong> {{ $testGscResult['rowCount'] }}</p>
+                    @if($testGscResult['rowCount'] > 0)
+                        <p><strong>Primeras filas:</strong></p>
+                        <ul class="ml-4 list-disc">
+                            @foreach($testGscResult['firstRows'] as $row)
+                                <li>{{ $row['date'] }} - clics: {{ $row['clicks'] }}, impresiones: {{ $row['impressions'] }}, ctr: {{ number_format($row['ctr'], 4) }}, posición: {{ number_format($row['avg_position'], 2) }}</li>
+                            @endforeach
+                        </ul>
+                    @endif
+                </div>
+            </div>
+        @endif
+
+        @if($testGa4Error)
+            <div class="mt-6 rounded-lg border border-red-200 bg-red-50 p-4">
+                <p class="text-sm font-medium text-red-800">Error en Test GA4</p>
+                <p class="mt-1 text-sm text-red-700">{{ $testGa4Error }}</p>
+            </div>
+        @endif
+
+        @if($testGa4Result && !$testGa4Error)
+            <div class="mt-6 rounded-lg border border-green-200 bg-green-50 p-4">
+                <p class="text-sm font-medium text-green-800">Test GA4 Exitoso</p>
+                <div class="mt-2 text-xs text-green-700 space-y-1">
+                    <p><strong>GA4 Property ID:</strong> {{ $testGa4Result['ga4PropertyId'] }}</p>
+                    <p><strong>Rango:</strong> {{ $testGa4Result['dateRange'] }}</p>
+                    <p><strong>Filas retornadas:</strong> {{ $testGa4Result['rowCount'] }}</p>
+                    @if($testGa4Result['rowCount'] > 0)
+                        <p><strong>Primeras filas:</strong></p>
+                        <ul class="ml-4 list-disc">
+                            @foreach($testGa4Result['firstRows'] as $row)
+                                <li>{{ $row['date'] }} - usuarios: {{ $row['users'] }}, sesiones: {{ $row['sessions'] }}, sesiones comprometidas: {{ $row['engaged_sessions'] ?? 'N/A' }}, conversiones: {{ $row['conversions'] ?? 'N/A' }}</li>
+                            @endforeach
+                        </ul>
+                    @endif
+                </div>
+            </div>
+        @endif
 
         <div class="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-3">
             <p class="text-sm text-gray-700">Esta pantalla no almacena credenciales OAuth de Google por empresa. Solo guarda el mapeo funcional que usa la integración global del sistema.</p>
