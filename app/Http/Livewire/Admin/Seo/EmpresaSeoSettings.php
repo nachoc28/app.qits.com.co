@@ -7,8 +7,12 @@ use App\Models\EmpresaSeoProperty;
 use App\Services\Seo\SeoPropertyConfigurationService;
 use App\Services\Seo\SeoPropertyConfigurationState;
 use App\Services\Seo\SearchConsoleClientService;
+use App\Services\Seo\SearchConsoleSyncService;
 use App\Services\Seo\Ga4ClientService;
 use App\Services\Seo\SeoPropertyContext;
+use App\Models\SeoGscDailyMetric;
+use App\Models\SeoGscQuery;
+use App\Models\SeoGscPage;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Livewire\Component;
@@ -69,6 +73,15 @@ class EmpresaSeoSettings extends Component
 
     /** @var string|null */
     public $testGa4Error = null;
+
+    /** @var bool */
+    public $syncGscLoading = false;
+
+    /** @var array<string, mixed>|null */
+    public $syncGscResult = null;
+
+    /** @var string|null */
+    public $syncGscError = null;
 
     protected function rules(): array
     {
@@ -246,6 +259,77 @@ class EmpresaSeoSettings extends Component
             ]);
         } finally {
             $this->testGa4Loading = false;
+        }
+    }
+
+    public function runGscSyncNow(SearchConsoleSyncService $syncService): void
+    {
+        $this->syncGscLoading = true;
+        $this->syncGscResult = null;
+        $this->syncGscError = null;
+
+        try {
+            if (empty($this->searchConsoleProperty)) {
+                $this->syncGscError = 'Search Console Property no está configurada.';
+                $this->syncGscLoading = false;
+                return;
+            }
+
+            $empresaSeoProperty = $this->empresa->seoProperty;
+            if (! $empresaSeoProperty instanceof EmpresaSeoProperty) {
+                $this->syncGscError = 'Configuración SEO de la empresa no encontrada.';
+                $this->syncGscLoading = false;
+                return;
+            }
+
+            $from = now()->subDays(30)->startOfDay();
+            $to   = now()->subDay()->endOfDay();
+
+            $result = $syncService->syncEmpresa($this->empresa, $from, $to);
+
+            $empresaId = $this->empresa->id;
+            $storedDaily   = SeoGscDailyMetric::where('empresa_id', $empresaId)->count();
+            $storedQueries = SeoGscQuery::where('empresa_id', $empresaId)->count();
+            $storedPages   = SeoGscPage::where('empresa_id', $empresaId)->count();
+            $lastDate      = SeoGscDailyMetric::where('empresa_id', $empresaId)
+                ->max('metric_date');
+
+            $this->syncGscResult = [
+                'empresa_id'       => $empresaId,
+                'property'         => $this->searchConsoleProperty,
+                'dateRange'        => $from->toDateString() . ' a ' . $to->toDateString(),
+                'daily_rows'       => $result->dailyRows,
+                'query_rows'       => $result->queryRows,
+                'page_rows'        => $result->pageRows,
+                'synced'           => $result->synced,
+                'stored_daily'     => $storedDaily,
+                'stored_queries'   => $storedQueries,
+                'stored_pages'     => $storedPages,
+                'last_stored_date' => $lastDate,
+            ];
+
+            Log::info('[SEO][GSC][SYNC_NOW] Sync manual exitoso.', [
+                'empresa_id' => $this->empresa->id,
+                'property'   => $this->searchConsoleProperty,
+                'from'       => $from->toDateString(),
+                'to'         => $to->toDateString(),
+                'daily_rows' => $result->dailyRows,
+                'query_rows' => $result->queryRows,
+                'page_rows'  => $result->pageRows,
+            ]);
+        } catch (Throwable $e) {
+            $this->syncGscError = 'Error: ' . $e->getMessage();
+
+            Log::error('[SEO][GSC][SYNC_NOW] Error en sync manual.', [
+                'empresa_id'               => $this->empresa->id,
+                'search_console_property'  => $this->searchConsoleProperty,
+                'date_range_start'         => isset($from) ? $from->toDateString() : null,
+                'date_range_end'           => isset($to) ? $to->toDateString() : null,
+                'exception_class'          => get_class($e),
+                'exception_message'        => $e->getMessage(),
+            ]);
+        } finally {
+            $this->syncGscLoading = false;
         }
     }
 
