@@ -10,6 +10,7 @@ use App\Models\SeoGscPage;
 use App\Models\SeoGscQuery;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Orquesta la sincronización GSC para una empresa y periodo determinado.
@@ -53,6 +54,34 @@ class SearchConsoleSyncService
         $dailyRows = $this->client->fetchDailyMetrics($context, $from, $to);
         $queryRows = $this->client->fetchTopQueries($context, $from, $to, $queryLimit);
         $pageRows  = $this->client->fetchTopPages($context, $from, $to, $pageLimit);
+
+        Log::info('[SEO][GSC][TEMP_DIAG] Sync request/response por empresa.', [
+            'empresa_id' => $empresa->id,
+            'property' => $context->gscProperty(),
+            'startDate' => $from->toDateString(),
+            'endDate' => $to->toDateString(),
+            'daily_row_count' => count($dailyRows),
+            'daily_first_3_row_keys' => array_slice(array_map(function (array $row): array {
+                return [
+                    $row['date'] ?? null,
+                ];
+            }, $dailyRows), 0, 3),
+            'query_row_count' => count($queryRows),
+            'query_first_3_row_keys' => array_slice(array_map(function (array $row): array {
+                return [
+                    $row['date'] ?? null,
+                    $row['query'] ?? null,
+                    $row['page'] ?? null,
+                ];
+            }, $queryRows), 0, 3),
+            'page_row_count' => count($pageRows),
+            'page_first_3_row_keys' => array_slice(array_map(function (array $row): array {
+                return [
+                    $row['date'] ?? null,
+                    $row['page'] ?? null,
+                ];
+            }, $pageRows), 0, 3),
+        ]);
 
         $fromDate = $from->toDateString();
         $toDate   = $to->toDateString();

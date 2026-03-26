@@ -59,6 +59,14 @@ class SyncEmpresaSearchConsoleJob implements ShouldQueue
 
         [$from, $to] = $this->resolveRange();
 
+        Log::info('[SEO][GSC][TEMP_DIAG] Intento de sync por empresa.', [
+            'empresa_id' => $property->empresa_id,
+            'empresa_seo_property_id' => $property->id,
+            'property' => $property->search_console_property,
+            'startDate' => $from->toDateString(),
+            'endDate' => $to->toDateString(),
+        ]);
+
         try {
             $result = $syncService->syncEmpresa($property->empresa, $from, $to);
 
@@ -75,6 +83,7 @@ class SyncEmpresaSearchConsoleJob implements ShouldQueue
             Log::error('[SEO][GSC] Error durante sincronización.', [
                 'empresa_id' => $property->empresa_id,
                 'empresa_seo_property_id' => $property->id,
+                'property' => $property->search_console_property,
                 'from' => $from->toDateString(),
                 'to' => $to->toDateString(),
                 'message' => $e->getMessage(),
