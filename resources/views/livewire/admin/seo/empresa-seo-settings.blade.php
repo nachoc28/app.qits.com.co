@@ -111,6 +111,12 @@
                     @endif
                     Test Search Console API
                 </button>
+                <button type="button" wire:click="runGscSyncNow" wire:loading.attr="disabled" class="mt-2 ml-2 inline-flex items-center rounded-md border border-indigo-300 bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-50">
+                    @if($syncGscLoading)
+                        <span class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-indigo-300 border-r-indigo-700 mr-2"></span>
+                    @endif
+                    Run GSC Sync Now
+                </button>
             </div>
 
             <div class="min-w-0">
@@ -207,6 +213,38 @@
                             @endforeach
                         </ul>
                     @endif
+                </div>
+            </div>
+        @endif
+
+        @if($syncGscError)
+            <div class="mt-6 rounded-lg border border-red-200 bg-red-50 p-4">
+                <p class="text-sm font-medium text-red-800">Error en GSC Sync Now</p>
+                <p class="mt-1 text-sm text-red-700">{{ $syncGscError }}</p>
+            </div>
+        @endif
+
+        @if($syncGscResult)
+            <div class="mt-6 rounded-lg border border-{{ $syncGscResult['synced'] ? 'indigo' : 'red' }}-200 bg-{{ $syncGscResult['synced'] ? 'indigo' : 'red' }}-50 p-4">
+                <p class="text-sm font-medium text-{{ $syncGscResult['synced'] ? 'indigo' : 'red' }}-800">
+                    GSC Sync Now — {{ $syncGscResult['synced'] ? 'Completado' : 'Fallido' }}
+                </p>
+                <div class="mt-2 text-xs text-{{ $syncGscResult['synced'] ? 'indigo' : 'red' }}-700 space-y-1">
+                    <p><strong>Empresa ID:</strong> {{ $syncGscResult['empresa_id'] }}</p>
+                    <p><strong>Propiedad:</strong> {{ $syncGscResult['property'] }}</p>
+                    <p><strong>Rango sincronizado:</strong> {{ $syncGscResult['dateRange'] }}</p>
+                    <p><strong>Filas API — diarias:</strong> {{ $syncGscResult['daily_rows'] }}</p>
+                    <p><strong>Filas API — queries:</strong> {{ $syncGscResult['query_rows'] }}</p>
+                    <p><strong>Filas API — páginas:</strong> {{ $syncGscResult['page_rows'] }}</p>
+                </div>
+                <div class="mt-3 border-t border-{{ $syncGscResult['synced'] ? 'indigo' : 'red' }}-200 pt-3 text-xs space-y-1 text-gray-700">
+                    <p class="font-semibold text-gray-800">Verificación en tablas locales (empresa_id {{ $syncGscResult['empresa_id'] }}):</p>
+                    <p><strong>seo_gsc_daily_metrics:</strong> {{ $syncGscResult['stored_daily'] }} fila(s) total</p>
+                    <p><strong>seo_gsc_queries:</strong> {{ $syncGscResult['stored_queries'] }} fila(s) total</p>
+                    <p><strong>seo_gsc_pages:</strong> {{ $syncGscResult['stored_pages'] }} fila(s) total</p>
+                    <p><strong>Última fecha en daily_metrics:</strong>
+                        {{ $syncGscResult['last_stored_date'] ?? 'sin datos' }}
+                    </p>
                 </div>
             </div>
         @endif
