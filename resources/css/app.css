@@ -1,3 +1,75 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+:root {
+    --qits-color-primary: #23545B;
+    --qits-color-secondary: #1A4D2E;
+    --qits-color-background: #F7F9FC;
+    --qits-color-accent: #F7B32B;
+    --qits-font-heading: 'Manrope', sans-serif;
+    --qits-font-body: 'Inter', sans-serif;
+}
+
+@layer base {
+    body {
+        background-color: var(--qits-color-background);
+        font-family: var(--qits-font-body);
+    }
+    a {
+        color: var(--qits-color-primary);
+        transition: color 150ms ease;
+    }
+    a:hover,
+    a:focus {
+        color: var(--qits-color-accent);
+    }
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        font-family: var(--qits-font-heading);
+    }
+}
+
+@layer components {
+    .qits-btn-primary {
+        background-color: var(--qits-color-primary);
+        border-color: var(--qits-color-primary);
+        color: #fff;
+    }
+    .qits-btn-primary:hover,
+    .qits-btn-primary:focus {
+        background-color: var(--qits-color-accent);
+        border-color: var(--qits-color-accent);
+        color: var(--qits-color-secondary);
+    }
+    .qits-btn-secondary {
+        background-color: #fff;
+        border-color: var(--qits-color-primary);
+        color: var(--qits-color-primary);
+    }
+    .qits-btn-secondary:hover,
+    .qits-btn-secondary:focus {
+        border-color: var(--qits-color-accent);
+        color: var(--qits-color-accent);
+    }
+    .bg-white.overflow-hidden.shadow-xl,
+    .bg-white.overflow-hidden.shadow-sm {
+        border-radius: 0.75rem;
+        box-shadow: 0 8px 24px rgba(35, 84, 91, 0.08);
+    }
+    table thead,
+    table thead th {
+        background-color: var(--qits-color-primary);
+        color: #fff;
+    }
+    table tbody tr:nth-child(even) {
+        background-color: #f1f5f9;
+    }
+    table tbody tr:hover {
+        background-color: rgba(247, 179, 43, 0.14);
+    }
+}

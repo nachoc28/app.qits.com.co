@@ -7,6 +7,9 @@
 
     <title>{{ config('app.name', 'Laravel') }}</title>
 
+    <link rel="icon" type="image/svg+xml" href="/images/favicon-qits-2026.svg">
+    <link rel="shortcut icon" href="/images/favicon-qits-2026.svg">
+
     <!-- Fonts -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap">
 
@@ -21,7 +24,7 @@
         @livewire('navigation-menu')
 
         @if (isset($header))
-            <header class="bg-white shadow">
+            <header class="bg-[#23545B] shadow [&_h1]:text-white [&_h2]:text-white [&_h3]:text-white [&_h4]:text-white [&_h5]:text-white [&_h6]:text-white">
                 <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                     {{ $header }}
                 </div>

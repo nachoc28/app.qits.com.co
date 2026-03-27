@@ -1,7 +1,13 @@
 <x-guest-layout>
     <x-jet-authentication-card>
         <x-slot name="logo">
-            <x-jet-authentication-card-logo />
+            <a href="{{ route('login') }}" class="inline-flex items-center justify-center">
+                <img
+                    src="{{ asset('images/qits-logo.svg') }}"
+                    alt="QITS"
+                    class="h-14 w-auto max-w-[220px] object-contain"
+                >
+            </a>
         </x-slot>
 
         <x-jet-validation-errors class="mb-4" />
@@ -39,9 +45,12 @@
                     </a>
                 @endif
 
-                <x-jet-button class="ml-4">
+                <button
+                    type="submit"
+                    class="ml-4 inline-flex items-center px-4 py-2 bg-[#23545B] border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest transition hover:bg-[#F7B32B] hover:text-[#1A4D2E] focus:bg-[#F7B32B] focus:text-[#1A4D2E] focus:outline-none focus:ring-2 focus:ring-[#F7B32B] focus:ring-offset-2 active:bg-[#1A4D2E]"
+                >
                     {{ __('Log in') }}
-                </x-jet-button>
+                </button>
             </div>
         </form>
     </x-jet-authentication-card>
