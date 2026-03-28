@@ -103,9 +103,30 @@
                                             top: 0,
                                             left: 0,
                                             panelWidth: 192,
+                                            panelHeight: 0,
+                                            openUp: false,
                                             updatePosition() {
                                                 const rect = this.$refs.trigger.getBoundingClientRect();
-                                                this.top = rect.bottom + 8;
+                                                const spacing = 8;
+                                                const viewportHeight = window.innerHeight;
+
+                                                this.panelHeight = this.$refs.panel
+                                                    ? this.$refs.panel.offsetHeight
+                                                    : this.panelHeight;
+
+                                                const estimatedHeight = this.panelHeight > 0 ? this.panelHeight : 300;
+                                                const spaceBelow = viewportHeight - rect.bottom;
+                                                const spaceAbove = rect.top;
+
+                                                this.openUp = spaceBelow < (estimatedHeight + spacing) && spaceAbove > (estimatedHeight + spacing);
+
+                                                if (this.openUp) {
+                                                    this.top = Math.max(spacing, rect.top - estimatedHeight - spacing);
+                                                } else {
+                                                    const preferredTop = rect.bottom + spacing;
+                                                    this.top = Math.min(preferredTop, Math.max(spacing, viewportHeight - estimatedHeight - spacing));
+                                                }
+
                                                 const rightAligned = rect.right - this.panelWidth;
                                                 this.left = Math.max(8, Math.min(rightAligned, window.innerWidth - this.panelWidth - 8));
                                             },
@@ -135,6 +156,7 @@
                                         <template x-teleport="body">
                                             <div x-show="open" x-cloak class="fixed inset-0 z-40" @click="open = false">
                                                 <div
+                                                    x-ref="panel"
                                                     class="fixed z-50 w-48 rounded-md bg-white py-1 shadow-lg ring-1 ring-black/5"
                                                     :style="`top:${top}px; left:${left}px`"
                                                     @click.stop

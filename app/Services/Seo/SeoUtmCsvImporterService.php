@@ -98,11 +98,14 @@ class SeoUtmCsvImporterService
             $missingColumns = array_values(array_diff(self::REQUIRED_COLUMNS, array_keys($headerMap)));
 
             if ($missingColumns !== []) {
+                $detectedHeaders = array_keys($headerMap);
                 $result['errors'][] = $this->makeError(
                     0,
                     null,
                     'missing_columns',
-                    'Faltan columnas requeridas: ' . implode(', ', $missingColumns) . '.',
+                    'Faltan columnas requeridas: ' . implode(', ', $missingColumns) . '. '
+                    . 'Cabeceras detectadas (normalizadas): '
+                    . ($detectedHeaders !== [] ? implode(', ', $detectedHeaders) : '[ninguna]') . '.',
                     'header'
                 );
 
@@ -614,8 +617,8 @@ class SeoUtmCsvImporterService
         }
 
         $header = $this->convertToUtf8((string) $value);
+        $header = $this->stripLeadingBom($header);
         $header = trim($header);
-        $header = ltrim($header, "\xEF\xBB\xBF");
 
         if ($header === '') {
             return null;
@@ -639,7 +642,7 @@ class SeoUtmCsvImporterService
         try {
             while (($line = fgets($handle)) !== false && $linesRead < 5) {
                 $line = $this->convertToUtf8($line);
-                $line = ltrim($line, "\xEF\xBB\xBF");
+                $line = $this->stripLeadingBom($line);
 
                 if (trim($line) === '') {
                     continue;
@@ -672,7 +675,7 @@ class SeoUtmCsvImporterService
             foreach ($row as $index => $value) {
                 $cell = is_string($value) ? $this->convertToUtf8($value) : $value;
                 if ($isHeader && $index === 0 && is_string($cell)) {
-                    $cell = ltrim($cell, "\xEF\xBB\xBF");
+                    $cell = $this->stripLeadingBom($cell);
                 }
                 $converted[] = $cell;
             }
@@ -695,6 +698,28 @@ class SeoUtmCsvImporterService
             if ($encoding !== false && $encoding !== 'UTF-8') {
                 return mb_convert_encoding($value, 'UTF-8', $encoding);
             }
+        }
+
+        return $value;
+    }
+
+    private function stripLeadingBom(string $value): string
+    {
+        if ($value === '') {
+            return $value;
+        }
+
+        // BOM UTF-8 real (bytes EF BB BF)
+        if (strpos($value, "\xEF\xBB\xBF") === 0) {
+            $value = substr($value, 3);
+        }
+
+        // BOM como caracter Unicode U+FEFF ya decodificado
+        $value = preg_replace('/^\x{FEFF}/u', '', $value);
+
+        // BOM mojibake común cuando se interpreta mal el UTF-8
+        if (strpos($value, 'ï»¿') === 0) {
+            $value = substr($value, 6);
         }
 
         return $value;
