@@ -124,6 +124,17 @@ class EmpresasManager extends Component
 
     public function mount()
     {
+        if (! auth()->check()) {
+            abort(401);
+        }
+
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+
+        if (! $user->isAdmin()) {
+            abort(403);
+        }
+
         $this->paises = Pais::orderBy('nombre')->get(['id','nombre'])->toArray();
         $this->pais_id = Pais::where('iso2','CO')->value('id');
         $this->loadSelects();

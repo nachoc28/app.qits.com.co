@@ -84,10 +84,10 @@ Route::middleware([
     Route::get('/admin/seo/{empresa}', function (Empresa $empresa) {
         return view('admin.seo.empresa-dashboard', compact('empresa'));
     })->name('admin.seo.empresa-dashboard');
-});
 
-Route::get('/google/connect', [GoogleOAuthController::class, 'connect']);
-Route::get('/google/callback', [GoogleOAuthController::class, 'callback']);
+    Route::get('/google/connect', [GoogleOAuthController::class, 'connect']);
+    Route::get('/google/callback', [GoogleOAuthController::class, 'callback']);
+});
 
 if (app()->environment('local')) {
     Route::get('/dev/reseed-api-token', function () {
