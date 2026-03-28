@@ -111,7 +111,7 @@
                 >
                 <p class="mt-1 text-xs text-gray-500">Mapeo de la propiedad que usará esta empresa. Obligatorio si GSC Enabled está activo.</p>
                 @error('searchConsoleProperty') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
-                <button type="button" wire:click="testGscConnection" wire:loading.attr="disabled" class="mt-2 inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                <button type="button" wire:click="testGscConnection" wire:loading.attr="disabled" class="mt-2 inline-flex items-center rounded-lg bg-gray-100 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 disabled:opacity-50">
                     @if($testGscLoading)
                         <span class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-r-gray-700 mr-2"></span>
                     @endif
@@ -136,7 +136,7 @@
                 >
                 <p class="mt-1 text-xs text-gray-500">Identificador GA4 asociado a esta empresa. Obligatorio si GA4 Enabled está activo.</p>
                 @error('ga4PropertyId') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
-                <button type="button" wire:click="testGa4Connection" wire:loading.attr="disabled" class="mt-2 inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                <button type="button" wire:click="testGa4Connection" wire:loading.attr="disabled" class="mt-2 inline-flex items-center rounded-lg bg-gray-100 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 disabled:opacity-50">
                     @if($testGa4Loading)
                         <span class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-r-gray-700 mr-2"></span>
                     @endif
