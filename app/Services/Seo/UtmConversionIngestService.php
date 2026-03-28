@@ -5,6 +5,7 @@ namespace App\Services\Seo;
 use App\Models\Empresa;
 use App\Models\EmpresaIntegration;
 use App\Models\SeoUtmConversion;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 
 /**
@@ -31,13 +32,16 @@ use Illuminate\Support\Carbon;
  */
 class UtmConversionIngestService
 {
+    private const SOURCE_SYSTEM = 'wordpress_utm_tracker';
+
     /**
      * Resuelve la empresa desde el contexto autenticado de integración
      * y persiste la conversión UTM.
      *
      * @param  array<string, mixed>  $payload
+        * @return array{conversion: SeoUtmConversion, created: bool}
      */
-    public function ingestFromIntegration(EmpresaIntegration $integration, array $payload): SeoUtmConversion
+    public function ingestFromIntegration(EmpresaIntegration $integration, array $payload): array
     {
         $empresa = $integration->relationLoaded('empresa')
             ? $integration->empresa
@@ -50,16 +54,44 @@ class UtmConversionIngestService
      * Valida y persiste una conversión UTM individual.
      *
      * @param  array<string, mixed>  $payload  Payload normalizable del request.
-     * @return SeoUtmConversion                Registro persistido.
+     * @return array{conversion: SeoUtmConversion, created: bool}
      * @throws \InvalidArgumentException       Si falta conversion_datetime.
      */
-    public function ingest(Empresa $empresa, array $payload): SeoUtmConversion
+    public function ingest(Empresa $empresa, array $payload): array
     {
         $normalized = $this->normalize($payload);
 
-        return SeoUtmConversion::create(array_merge($normalized, [
+        $recordPayload = array_merge($normalized, [
             'empresa_id' => $empresa->id,
-        ]));
+        ]);
+
+        try {
+            $conversion = SeoUtmConversion::create($recordPayload);
+
+            return [
+                'conversion' => $conversion,
+                'created' => true,
+            ];
+        } catch (QueryException $e) {
+            if (! $this->isDuplicateKeyException($e)) {
+                throw $e;
+            }
+
+            $existing = SeoUtmConversion::query()
+                ->where('empresa_id', $empresa->id)
+                ->where('source_system', self::SOURCE_SYSTEM)
+                ->where('source_record_id', $normalized['source_record_id'])
+                ->first();
+
+            if (! $existing) {
+                throw $e;
+            }
+
+            return [
+                'conversion' => $existing,
+                'created' => false,
+            ];
+        }
     }
 
     /**
@@ -77,8 +109,11 @@ class UtmConversionIngestService
 
         foreach ($payloads as $index => $payload) {
             try {
-                $this->ingest($empresa, $payload);
-                $created++;
+                $result = $this->ingest($empresa, $payload);
+
+                if ($result['created']) {
+                    $created++;
+                }
             } catch (\Throwable $e) {
                 $failed++;
                 $errors[] = "row[{$index}]: " . $e->getMessage();
@@ -108,6 +143,11 @@ class UtmConversionIngestService
         }
 
         $dt = Carbon::parse($raw);
+        $sourceRecordId = $this->truncate($payload, 'source_record_id', 191);
+
+        if ($sourceRecordId === null) {
+            throw new \InvalidArgumentException('source_record_id es requerido.');
+        }
 
         return [
             'conversion_datetime' => $dt->toDateTimeString(),
@@ -123,12 +163,27 @@ class UtmConversionIngestService
             'lead_id'             => isset($payload['lead_id']) && (int) $payload['lead_id'] > 0
                                         ? (int) $payload['lead_id']
                                         : null,
+            'source_system'       => self::SOURCE_SYSTEM,
+            'source_record_id'    => $sourceRecordId,
             // raw_payload_json está casteado como 'array' en el modelo;
             // Eloquent serializa automáticamente al persistir.
             'raw_payload_json'    => isset($payload['raw_payload_json']) && is_array($payload['raw_payload_json'])
                                         ? $payload['raw_payload_json']
                                         : null,
         ];
+    }
+
+    private function isDuplicateKeyException(QueryException $exception): bool
+    {
+        $errorInfo = $exception->errorInfo;
+
+        if (is_array($errorInfo) && isset($errorInfo[1]) && (int) $errorInfo[1] === 1062) {
+            return true;
+        }
+
+        $message = mb_strtolower($exception->getMessage(), 'UTF-8');
+
+        return strpos($message, 'duplicate entry') !== false;
     }
 
     /**

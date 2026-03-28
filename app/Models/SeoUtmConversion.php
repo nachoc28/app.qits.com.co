@@ -20,6 +20,8 @@ class SeoUtmConversion extends Model
         'content',
         'event_name',
         'lead_id',
+        'source_system',
+        'source_record_id',
         'raw_payload_json',
     ];
 
@@ -27,6 +29,8 @@ class SeoUtmConversion extends Model
         'empresa_id' => 'integer',
         'conversion_datetime' => 'datetime',
         'lead_id' => 'integer',
+        'source_system' => 'string',
+        'source_record_id' => 'string',
         'raw_payload_json' => 'array',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',

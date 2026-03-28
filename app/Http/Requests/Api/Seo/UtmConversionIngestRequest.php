@@ -27,6 +27,13 @@ class UtmConversionIngestRequest extends FormRequest
                 ]);
             }
         }
+
+        // Compatibilidad temporal: si llega id legado, se mapea a source_record_id.
+        if (! $this->filled('source_record_id') && $this->filled('id')) {
+            $this->merge([
+                'source_record_id' => (string) $this->input('id'),
+            ]);
+        }
     }
 
     public function rules(): array
@@ -42,6 +49,7 @@ class UtmConversionIngestRequest extends FormRequest
             'content'             => ['nullable', 'string', 'max:150'],
             'event_name'          => ['nullable', 'string', 'max:120'],
             'lead_id'             => ['nullable', 'integer', 'min:1'],
+            'source_record_id'    => ['required', 'string', 'max:191'],
             'raw_payload_json'    => ['nullable', 'array'],
         ];
     }
@@ -52,6 +60,8 @@ class UtmConversionIngestRequest extends FormRequest
             'conversion_datetime.required' => 'conversion_datetime es requerido.',
             'conversion_datetime.date'     => 'conversion_datetime debe ser una fecha válida.',
             'page_url.url'                 => 'page_url debe ser una URL válida.',
+            'source_record_id.required'    => 'source_record_id es requerido.',
+            'source_record_id.max'         => 'source_record_id no debe superar 191 caracteres.',
             'raw_payload_json.array'       => 'raw_payload_json debe ser un objeto/array JSON válido.',
         ];
     }

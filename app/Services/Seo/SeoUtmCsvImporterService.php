@@ -3,27 +3,13 @@
 namespace App\Services\Seo;
 
 use App\Models\Empresa;
-use App\Models\EmpresaSeoProperty;
 use App\Models\SeoUtmConversion;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 
 class SeoUtmCsvImporterService
 {
-    private const EXTERNAL_REFERENCE_DOMAINS = [
-        'google.com',
-        'facebook.com',
-        'fb.com',
-        'instagram.com',
-        't.co',
-        'twitter.com',
-        'x.com',
-        'linkedin.com',
-        'bing.com',
-        'youtube.com',
-        'wa.me',
-        'whatsapp.com',
-        'api.whatsapp.com',
-    ];
+    private const SOURCE_SYSTEM = 'wordpress_utm_tracker';
 
     private const REQUIRED_COLUMNS = [
         'id',
@@ -59,7 +45,7 @@ class SeoUtmCsvImporterService
     ];
 
     /**
-     * Importa un CSV histórico de eventos UTM para una empresa.
+     * Importa un CSV historico de eventos UTM para una empresa.
      *
      * @param  array<string, mixed>  $options
      * @return array<string, mixed>
@@ -70,24 +56,6 @@ class SeoUtmCsvImporterService
 
         if (! is_file($filePath) || ! is_readable($filePath)) {
             $result['errors'][] = $this->makeError(0, null, 'file_unreadable', 'No se pudo leer el archivo CSV indicado.', 'file');
-
-            return $result;
-        }
-
-        $property = $empresa->relationLoaded('seoProperty')
-            ? $empresa->seoProperty
-            : $empresa->seoProperty()->first();
-
-        if (! $property instanceof EmpresaSeoProperty) {
-            $result['errors'][] = $this->makeError(0, null, 'missing_company_seo_property', 'La empresa no tiene configuración SEO; no se puede validar propiedad del dominio.', 'empresa');
-
-            return $result;
-        }
-
-        $companyDomains = $this->extractCompanyDomains($property);
-
-        if ($companyDomains === []) {
-            $result['errors'][] = $this->makeError(0, null, 'missing_company_domains', 'La configuración SEO de la empresa no tiene dominios válidos en site_url o wordpress_site_url.', 'empresa');
 
             return $result;
         }
@@ -129,40 +97,6 @@ class SeoUtmCsvImporterService
             }
 
             $maxRows = $this->maxRows();
-            $ownership = $this->evaluateFileOwnership($handle, $delimiter, $headerMap, $companyDomains, $maxRows);
-
-            $result['total_rows'] = $ownership['total_rows'];
-            $result['detected_domains'] = $ownership['detected_domains'];
-            $result['matched_company_domain'] = $ownership['matched_company_domain'];
-            $result['ownership_confidence'] = $ownership['ownership_confidence'];
-            $result['file_ownership_passed'] = $ownership['file_ownership_passed'];
-
-            if (! $ownership['file_ownership_passed']) {
-                $result['errors'][] = $this->makeError(
-                    0,
-                    null,
-                    'file_ownership_failed',
-                    $ownership['reason'],
-                    'file'
-                );
-
-                return $result;
-            }
-
-            if (! rewind($handle)) {
-                $result['errors'][] = $this->makeError(0, null, 'file_rewind_failed', 'No se pudo reiniciar la lectura del archivo CSV para el procesamiento.', 'file');
-
-                return $result;
-            }
-
-            $headerAgain = $this->readCsvRow($handle, $delimiter, true);
-
-            if ($headerAgain === null) {
-                $result['errors'][] = $this->makeError(0, null, 'missing_header_after_rewind', 'No se pudo volver a leer la cabecera del CSV.', 'header');
-
-                return $result;
-            }
-
             $chunkSize = $this->chunkSize();
             $rowNumber = 1;
             $chunk = [];
@@ -172,6 +106,20 @@ class SeoUtmCsvImporterService
 
                 if ($this->isEmptyCsvRow($row)) {
                     continue;
+                }
+
+                $result['total_rows']++;
+
+                if ($result['total_rows'] > $maxRows) {
+                    $result['errors'][] = $this->makeError(
+                        $rowNumber,
+                        null,
+                        'max_rows_exceeded',
+                        'El archivo excede el maximo permitido de ' . $maxRows . ' filas.',
+                        'file'
+                    );
+
+                    return $result;
                 }
 
                 $chunk[] = [
@@ -185,7 +133,7 @@ class SeoUtmCsvImporterService
                 }
             }
 
-            if (($ownership['total_rows'] ?? 0) === 0) {
+            if ($result['total_rows'] === 0) {
                 $result['errors'][] = $this->makeError(0, null, 'missing_data_rows', 'El CSV debe contener al menos una fila de datos.', 'file');
 
                 return $result;
@@ -198,8 +146,14 @@ class SeoUtmCsvImporterService
             fclose($handle);
         }
 
-        if ($result['created'] > 0 && $property->exists) {
-            $property->markUtmSynced();
+        if ($result['created'] > 0) {
+            $property = $empresa->relationLoaded('seoProperty')
+                ? $empresa->seoProperty
+                : $empresa->seoProperty()->first();
+
+            if ($property) {
+                $property->markUtmSynced();
+            }
         }
 
         return $result;
@@ -245,16 +199,28 @@ class SeoUtmCsvImporterService
 
             $payload = $normalized['payload'];
 
-            if ($this->findDuplicate($empresa, $payload) instanceof SeoUtmConversion) {
-                $result['skipped_duplicate']++;
-                continue;
+            try {
+                SeoUtmConversion::create(array_merge($payload, [
+                    'empresa_id' => $empresa->id,
+                ]));
+
+                $result['created']++;
+            } catch (QueryException $e) {
+                if ($this->isDuplicateKeyException($e)) {
+                    $result['duplicates']++;
+                    $result['skipped_duplicate']++;
+                    continue;
+                }
+
+                $result['failed']++;
+                $result['errors'][] = $this->makeError(
+                    $rowNumber,
+                    $csvId,
+                    'db_error',
+                    'No se pudo persistir la fila por un error de base de datos.',
+                    'database'
+                );
             }
-
-            SeoUtmConversion::create(array_merge($payload, [
-                'empresa_id' => $empresa->id,
-            ]));
-
-            $result['created']++;
         }
     }
 
@@ -268,8 +234,8 @@ class SeoUtmCsvImporterService
         $extra = $this->parseExtraField($csvRow['extra'] ?? null, $warnings);
         $conversionDateTime = $this->normalizeDateTime($csvRow['created_at'] ?? null);
         $pageUrl = $this->normalizeUrl($csvRow['referrer'] ?? null, true, $warnings, 'referrer');
-        $candidateDomains = $this->extractCandidateDomains($pageUrl, $extra);
 
+        $sourceRecordId = $this->normalizeSourceRecordId($csvRow['id'] ?? null);
         $source = $this->normalizeText($csvRow['utm_source'] ?? null, 120, true, $warnings, 'utm_source');
         $medium = $this->normalizeText($csvRow['utm_medium'] ?? null, 120, true, $warnings, 'utm_medium');
         $campaign = $this->normalizeText($csvRow['utm_campaign'] ?? null, 150, false, $warnings, 'utm_campaign');
@@ -279,10 +245,10 @@ class SeoUtmCsvImporterService
         $formName = $this->normalizeText($csvRow['form_name'] ?? null, 150, false, $warnings, 'form_name');
 
         if (! $this->hasMeaningfulAttribution($pageUrl, [$source, $medium, $campaign, $term, $content])) {
-            throw new \InvalidArgumentException('La fila no tiene URL atribuible ni valores UTM útiles para importar.', 3);
+            throw new \InvalidArgumentException('La fila no tiene URL atribuible ni valores UTM utiles para importar.', 3);
         }
 
-        $rawPayload = $this->buildRawPayload($csvRow, $extra, $pageUrl, $candidateDomains);
+        $rawPayload = $this->buildRawPayload($csvRow, $extra, $pageUrl);
 
         return [
             'payload' => [
@@ -296,192 +262,12 @@ class SeoUtmCsvImporterService
                 'content' => $content,
                 'event_name' => $eventName,
                 'lead_id' => null,
+                'source_system' => self::SOURCE_SYSTEM,
+                'source_record_id' => $sourceRecordId,
                 'raw_payload_json' => $rawPayload,
             ],
             'warnings' => $warnings,
         ];
-    }
-
-    /**
-     * @param  resource  $handle
-     * @param  array<string, int>  $headerMap
-     * @param  array<int, string>  $companyDomains
-     * @return array{
-     *   total_rows: int,
-     *   detected_domains: array<int, array{domain: string, count: int, external: bool, matches_company: bool}>,
-     *   matched_company_domain: string|null,
-     *   ownership_confidence: float,
-     *   file_ownership_passed: bool,
-     *   reason: string
-     * }
-     */
-    private function evaluateFileOwnership($handle, string $delimiter, array $headerMap, array $companyDomains, int $maxRows): array
-    {
-        $domainCounts = [];
-        $rowCount = 0;
-
-        while (($row = $this->readCsvRow($handle, $delimiter)) !== null) {
-            if ($this->isEmptyCsvRow($row)) {
-                continue;
-            }
-
-            $rowCount++;
-
-            if ($rowCount > $maxRows) {
-                return [
-                    'total_rows' => $rowCount,
-                    'detected_domains' => [],
-                    'matched_company_domain' => null,
-                    'ownership_confidence' => 0.0,
-                    'file_ownership_passed' => false,
-                    'reason' => 'El archivo excede el máximo permitido de ' . $maxRows . ' filas.',
-                ];
-            }
-
-            $associated = $this->associateRow($headerMap, $row);
-            $domainsInRow = $this->extractOwnershipDomainsFromRow($associated);
-
-            foreach ($domainsInRow as $domain) {
-                if (! isset($domainCounts[$domain])) {
-                    $domainCounts[$domain] = 0;
-                }
-
-                $domainCounts[$domain]++;
-            }
-        }
-
-        if ($rowCount === 0) {
-            return [
-                'total_rows' => 0,
-                'detected_domains' => [],
-                'matched_company_domain' => null,
-                'ownership_confidence' => 0.0,
-                'file_ownership_passed' => false,
-                'reason' => 'El CSV debe contener al menos una fila de datos.',
-            ];
-        }
-
-        arsort($domainCounts);
-
-        $companySignals = 0;
-        $nonExternalSignals = 0;
-        $matchedCompanyCounts = [];
-        $detectedDomains = [];
-
-        foreach ($domainCounts as $domain => $count) {
-            $isExternal = $this->isExternalReferenceDomain($domain);
-            $matchedCompany = $this->resolveMatchedCompanyDomain($domain, $companyDomains);
-
-            if ($matchedCompany !== null) {
-                $companySignals += $count;
-                if (! isset($matchedCompanyCounts[$matchedCompany])) {
-                    $matchedCompanyCounts[$matchedCompany] = 0;
-                }
-                $matchedCompanyCounts[$matchedCompany] += $count;
-            }
-
-            if (! $isExternal) {
-                $nonExternalSignals += $count;
-            }
-
-            $detectedDomains[] = [
-                'domain' => $domain,
-                'count' => (int) $count,
-                'external' => $isExternal,
-                'matches_company' => $matchedCompany !== null,
-            ];
-        }
-
-        $ownershipConfidence = $nonExternalSignals > 0
-            ? round($companySignals / $nonExternalSignals, 4)
-            : ($companySignals > 0 ? 1.0 : 0.0);
-
-        arsort($matchedCompanyCounts);
-        $matchedCompanyDomain = $matchedCompanyCounts === []
-            ? null
-            : (string) array_key_first($matchedCompanyCounts);
-
-        $minimumMatches = $this->ownershipMinimumMatches();
-        $minimumConfidence = $this->ownershipMinimumConfidence();
-
-        $passed = false;
-
-        if ($companySignals > 0) {
-            if ($nonExternalSignals === 0) {
-                $passed = $companySignals >= $minimumMatches;
-            } else {
-                $passed = $companySignals >= $minimumMatches
-                    && $ownershipConfidence >= $minimumConfidence;
-            }
-        }
-
-        if (! $passed) {
-            $reason = 'No se pudo confirmar que el archivo pertenezca a la empresa seleccionada. '
-                . 'Coincidencias de dominio empresa: ' . $companySignals
-                . ', señales no externas: ' . $nonExternalSignals
-                . ', confianza: ' . $ownershipConfidence . '.';
-        } else {
-            $reason = 'Archivo validado por ownership a nivel de archivo.';
-        }
-
-        return [
-            'total_rows' => $rowCount,
-            'detected_domains' => $detectedDomains,
-            'matched_company_domain' => $matchedCompanyDomain,
-            'ownership_confidence' => $ownershipConfidence,
-            'file_ownership_passed' => $passed,
-            'reason' => $reason,
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $row
-     * @return array<int, string>
-     */
-    private function extractOwnershipDomainsFromRow(array $row): array
-    {
-        $warnings = [];
-        $extra = $this->parseExtraField($row['extra'] ?? null, $warnings);
-        $domains = [];
-
-        foreach ([
-            $row['referrer'] ?? null,
-            $extra['finalUrl'] ?? null,
-            $extra['target'] ?? null,
-        ] as $value) {
-            $domain = $this->extractDomainFromUrl($value);
-            if ($domain !== null) {
-                $domains[] = $domain;
-            }
-        }
-
-        return array_values(array_unique($domains));
-    }
-
-    /**
-     * @param  array<string, mixed>  $payload
-     */
-    private function findDuplicate(Empresa $empresa, array $payload): ?SeoUtmConversion
-    {
-        $timestamp = Carbon::parse($payload['conversion_datetime'], 'UTC');
-        $window = $this->duplicateWindowSeconds();
-
-        $query = SeoUtmConversion::query()
-            ->where('empresa_id', $empresa->id)
-            ->whereBetween('conversion_datetime', [
-                $timestamp->copy()->subSeconds($window)->toDateTimeString(),
-                $timestamp->copy()->addSeconds($window)->toDateTimeString(),
-            ]);
-
-        $this->applyNullSafeWhere($query, 'page_url', $payload['page_url']);
-        $this->applyNullSafeWhere($query, 'source', $payload['source']);
-        $this->applyNullSafeWhere($query, 'medium', $payload['medium']);
-        $this->applyNullSafeWhere($query, 'campaign', $payload['campaign']);
-        $this->applyNullSafeWhere($query, 'term', $payload['term']);
-        $this->applyNullSafeWhere($query, 'content', $payload['content']);
-        $this->applyNullSafeWhere($query, 'event_name', $payload['event_name']);
-
-        return $query->first();
     }
 
     /**
@@ -503,7 +289,7 @@ class SeoUtmCsvImporterService
         if (mb_strlen($normalized, 'UTF-8') > $maxLength) {
             $warnings[] = [
                 'type' => 'string_truncated',
-                'message' => $field . ' excede la longitud máxima y fue truncado a ' . $maxLength . ' caracteres.',
+                'message' => $field . ' excede la longitud maxima y fue truncado a ' . $maxLength . ' caracteres.',
                 'field' => $field,
             ];
 
@@ -554,7 +340,7 @@ class SeoUtmCsvImporterService
         if (mb_strlen($url, 'UTF-8') > 500) {
             $warnings[] = [
                 'type' => 'string_truncated',
-                'message' => $field . ' excede la longitud máxima y fue truncado a 500 caracteres.',
+                'message' => $field . ' excede la longitud maxima y fue truncado a 500 caracteres.',
                 'field' => $field,
             ];
 
@@ -572,14 +358,32 @@ class SeoUtmCsvImporterService
         $scalar = $this->sanitizeScalar($value, false);
 
         if ($scalar === null) {
-            throw new \InvalidArgumentException('created_at es obligatorio y debe contener una fecha válida.', 1);
+            throw new \InvalidArgumentException('created_at es obligatorio y debe contener una fecha valida.', 1);
         }
 
         try {
             return Carbon::parse($scalar, 'UTC')->utc();
         } catch (\Throwable $e) {
-            throw new \InvalidArgumentException('created_at no es una fecha válida o no se pudo convertir a UTC.', 1);
+            throw new \InvalidArgumentException('created_at no es una fecha valida o no se pudo convertir a UTC.', 1);
         }
+    }
+
+    /**
+     * @param  mixed  $value
+     */
+    private function normalizeSourceRecordId($value): string
+    {
+        $scalar = $this->sanitizeScalar($value, false);
+
+        if ($scalar === null) {
+            throw new \InvalidArgumentException('id es obligatorio para construir source_record_id.', 4);
+        }
+
+        if (mb_strlen($scalar, 'UTF-8') > 191) {
+            throw new \InvalidArgumentException('id excede la longitud maxima permitida (191).', 4);
+        }
+
+        return $scalar;
     }
 
     /**
@@ -604,7 +408,7 @@ class SeoUtmCsvImporterService
         if (json_last_error() !== JSON_ERROR_NONE || ! is_array($decoded)) {
             $warnings[] = [
                 'type' => 'invalid_extra_json',
-                'message' => 'La columna extra no contiene JSON válido; se ignoró para la resolución de URLs.',
+                'message' => 'La columna extra no contiene JSON valido; se ignoro para datos auxiliares.',
                 'field' => 'extra',
             ];
 
@@ -612,59 +416,6 @@ class SeoUtmCsvImporterService
         }
 
         return $decoded;
-    }
-
-    /**
-     * @param  array<int, string>  $companyDomains
-     * @param  array<int, string>  $candidateDomains
-     */
-    private function matchesCompanyDomains(array $candidateDomains, array $companyDomains): bool
-    {
-        if ($candidateDomains === []) {
-            return false;
-        }
-
-        foreach ($candidateDomains as $candidateDomain) {
-            foreach ($companyDomains as $companyDomain) {
-                if ($candidateDomain === $companyDomain) {
-                    return true;
-                }
-
-                $suffix = '.' . $companyDomain;
-                if (substr($candidateDomain, -strlen($suffix)) === $suffix) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    private function resolveMatchedCompanyDomain(string $candidateDomain, array $companyDomains): ?string
-    {
-        foreach ($companyDomains as $companyDomain) {
-            if ($candidateDomain === $companyDomain) {
-                return $companyDomain;
-            }
-
-            $suffix = '.' . $companyDomain;
-            if (substr($candidateDomain, -strlen($suffix)) === $suffix) {
-                return $companyDomain;
-            }
-        }
-
-        return null;
-    }
-
-    private function isExternalReferenceDomain(string $domain): bool
-    {
-        foreach (self::EXTERNAL_REFERENCE_DOMAINS as $externalDomain) {
-            if ($domain === $externalDomain || substr($domain, -strlen('.' . $externalDomain)) === '.' . $externalDomain) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**
@@ -683,70 +434,6 @@ class SeoUtmCsvImporterService
         }
 
         return false;
-    }
-
-    /**
-     * @param  array<string, mixed>  $extra
-     * @param  array<int, string>  $warnings
-     * @return array<int, string>
-     */
-    private function extractCandidateDomains(?string $pageUrl, array $extra): array
-    {
-        $domains = [];
-
-        foreach ([$pageUrl, $extra['finalUrl'] ?? null, $extra['target'] ?? null] as $value) {
-            $domain = $this->extractDomainFromUrl($value);
-            if ($domain !== null) {
-                $domains[] = $domain;
-            }
-        }
-
-        return array_values(array_unique($domains));
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function extractCompanyDomains(EmpresaSeoProperty $property): array
-    {
-        $domains = [];
-
-        foreach ([$property->site_url, $property->wordpress_site_url] as $url) {
-            $domain = $this->extractDomainFromUrl($url);
-            if ($domain !== null) {
-                $domains[] = $domain;
-            }
-        }
-
-        return array_values(array_unique($domains));
-    }
-
-    /**
-     * @param  mixed  $value
-     */
-    private function extractDomainFromUrl($value): ?string
-    {
-        $scalar = $this->sanitizeScalar($value, false);
-
-        if ($scalar === null || ! filter_var($scalar, FILTER_VALIDATE_URL)) {
-            return null;
-        }
-
-        $host = parse_url($scalar, PHP_URL_HOST);
-
-        if (! is_string($host) || $host === '') {
-            return null;
-        }
-
-        return $this->normalizeDomain($host);
-    }
-
-    private function normalizeDomain(string $host): string
-    {
-        $host = strtolower(trim($host));
-        $host = preg_replace('/^www\./', '', $host);
-
-        return rtrim((string) $host, '.');
     }
 
     /**
@@ -920,15 +607,12 @@ class SeoUtmCsvImporterService
             return $value;
         }
 
-        // BOM UTF-8 real (bytes EF BB BF)
         if (strpos($value, "\xEF\xBB\xBF") === 0) {
             $value = substr($value, 3);
         }
 
-        // BOM como caracter Unicode U+FEFF ya decodificado
         $value = preg_replace('/^\x{FEFF}/u', '', $value);
 
-        // BOM mojibake común cuando se interpreta mal el UTF-8
         if (strpos($value, 'ï»¿') === 0) {
             $value = substr($value, 6);
         }
@@ -939,16 +623,14 @@ class SeoUtmCsvImporterService
     /**
      * @param  array<string, mixed>  $row
      * @param  array<string, mixed>  $extra
-     * @param  array<int, string>  $candidateDomains
      * @return array<string, mixed>
      */
-    private function buildRawPayload(array $row, array $extra, ?string $pageUrl, array $candidateDomains): array
+    private function buildRawPayload(array $row, array $extra, ?string $pageUrl): array
     {
         return [
             'csv_row' => $row,
             'normalized' => [
                 'page_url' => $pageUrl,
-                'candidate_domains' => $candidateDomains,
             ],
             'extra_json' => $extra,
             'imported_at' => now()->utc()->toIso8601String(),
@@ -968,6 +650,19 @@ class SeoUtmCsvImporterService
         return is_numeric($value) ? (int) $value : (string) $value;
     }
 
+    private function isDuplicateKeyException(QueryException $exception): bool
+    {
+        $errorInfo = $exception->errorInfo;
+
+        if (is_array($errorInfo) && isset($errorInfo[1]) && (int) $errorInfo[1] === 1062) {
+            return true;
+        }
+
+        $message = mb_strtolower($exception->getMessage(), 'UTF-8');
+
+        return strpos($message, 'duplicate entry') !== false;
+    }
+
     /**
      * @param  array<string, mixed>  $result
      * @param  array<string, mixed>  $options
@@ -979,14 +674,11 @@ class SeoUtmCsvImporterService
             'total_rows' => 0,
             'processed' => 0,
             'created' => 0,
+            'duplicates' => 0,
             'skipped_duplicate' => 0,
             'failed' => 0,
             'errors' => [],
             'warnings' => [],
-            'detected_domains' => [],
-            'matched_company_domain' => null,
-            'ownership_confidence' => 0.0,
-            'file_ownership_passed' => false,
             'file_info' => [
                 'filename' => isset($options['filename']) && is_string($options['filename'])
                     ? $options['filename']
@@ -1028,20 +720,6 @@ class SeoUtmCsvImporterService
     }
 
     /**
-     * @param  mixed  $value
-     */
-    private function applyNullSafeWhere($query, string $column, $value): void
-    {
-        if ($value === null) {
-            $query->whereNull($column);
-
-            return;
-        }
-
-        $query->where($column, $value);
-    }
-
-    /**
      * @param  array<int, mixed>  $row
      */
     private function isEmptyCsvRow(array $row): bool
@@ -1075,44 +753,15 @@ class SeoUtmCsvImporterService
         return $size;
     }
 
-    private function duplicateWindowSeconds(): int
-    {
-        $window = (int) config('seo.csv_utm_import.duplicate_time_window_seconds', 60);
-
-        return $window > 0 ? $window : 60;
-    }
-
-    private function ownershipMinimumMatches(): int
-    {
-        $value = (int) config('seo.csv_utm_import.ownership_min_matches', 3);
-
-        return $value > 0 ? $value : 3;
-    }
-
-    private function ownershipMinimumConfidence(): float
-    {
-        $value = (float) config('seo.csv_utm_import.ownership_min_confidence', 0.20);
-
-        if ($value < 0) {
-            return 0.20;
-        }
-
-        if ($value > 1) {
-            return 1.0;
-        }
-
-        return $value;
-    }
-
     private function resolveErrorField(int $code): string
     {
         switch ($code) {
             case 1:
                 return 'created_at';
-            case 2:
-                return 'domain';
             case 3:
                 return 'all';
+            case 4:
+                return 'id';
             default:
                 return 'row';
         }

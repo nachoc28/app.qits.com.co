@@ -44,20 +44,27 @@ class UtmConversionIngestController extends Controller
         }
 
         try {
-            $conversion = $this->ingestService->ingestFromIntegration(
+            $ingestResult = $this->ingestService->ingestFromIntegration(
                 $integration,
                 $request->validated()
             );
 
+            $conversion = $ingestResult['conversion'];
+            $created = (bool) $ingestResult['created'];
+
             return response()->json([
                 'success' => true,
-                'message' => 'Conversión UTM registrada correctamente.',
+                'message' => $created
+                    ? 'Conversión UTM registrada correctamente.'
+                    : 'Conversión UTM ya existente (idempotente).',
                 'data'    => [
                     'id' => $conversion->id,
                     'empresa_id' => $conversion->empresa_id,
                     'conversion_datetime' => optional($conversion->conversion_datetime)->toDateTimeString(),
+                    'source_record_id' => $conversion->source_record_id,
+                    'created' => $created,
                 ],
-            ], 201);
+            ], $created ? 201 : 200);
 
         } catch (Throwable $e) {
             report($e);
