@@ -40,17 +40,14 @@
 
             <div class="flex items-center justify-end mt-4">
                 @if (Route::has('password.request'))
-                    <a class="underline text-sm text-gray-600 hover:text-gray-900" href="{{ route('password.request') }}">
+                    <a class="rounded underline text-sm text-indigo-600 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2" href="{{ route('password.request') }}">
                         {{ __('Forgot your password?') }}
                     </a>
                 @endif
 
-                <button
-                    type="submit"
-                    class="ml-4 inline-flex items-center px-4 py-2 bg-[#23545B] border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest transition hover:bg-[#F7B32B] hover:text-[#1A4D2E] focus:bg-[#F7B32B] focus:text-[#1A4D2E] focus:outline-none focus:ring-2 focus:ring-[#F7B32B] focus:ring-offset-2 active:bg-[#1A4D2E]"
-                >
+                <x-jet-button class="ml-4" type="submit">
                     {{ __('Log in') }}
-                </button>
+                </x-jet-button>
             </div>
         </form>
     </x-jet-authentication-card>
