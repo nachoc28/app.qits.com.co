@@ -9,6 +9,22 @@ use Illuminate\Support\Carbon;
 
 class SeoUtmCsvImporterService
 {
+    private const EXTERNAL_REFERENCE_DOMAINS = [
+        'google.com',
+        'facebook.com',
+        'fb.com',
+        'instagram.com',
+        't.co',
+        'twitter.com',
+        'x.com',
+        'linkedin.com',
+        'bing.com',
+        'youtube.com',
+        'wa.me',
+        'whatsapp.com',
+        'api.whatsapp.com',
+    ];
+
     private const REQUIRED_COLUMNS = [
         'id',
         'event_type',
@@ -112,11 +128,44 @@ class SeoUtmCsvImporterService
                 return $result;
             }
 
+            $maxRows = $this->maxRows();
+            $ownership = $this->evaluateFileOwnership($handle, $delimiter, $headerMap, $companyDomains, $maxRows);
+
+            $result['total_rows'] = $ownership['total_rows'];
+            $result['detected_domains'] = $ownership['detected_domains'];
+            $result['matched_company_domain'] = $ownership['matched_company_domain'];
+            $result['ownership_confidence'] = $ownership['ownership_confidence'];
+            $result['file_ownership_passed'] = $ownership['file_ownership_passed'];
+
+            if (! $ownership['file_ownership_passed']) {
+                $result['errors'][] = $this->makeError(
+                    0,
+                    null,
+                    'file_ownership_failed',
+                    $ownership['reason'],
+                    'file'
+                );
+
+                return $result;
+            }
+
+            if (! rewind($handle)) {
+                $result['errors'][] = $this->makeError(0, null, 'file_rewind_failed', 'No se pudo reiniciar la lectura del archivo CSV para el procesamiento.', 'file');
+
+                return $result;
+            }
+
+            $headerAgain = $this->readCsvRow($handle, $delimiter, true);
+
+            if ($headerAgain === null) {
+                $result['errors'][] = $this->makeError(0, null, 'missing_header_after_rewind', 'No se pudo volver a leer la cabecera del CSV.', 'header');
+
+                return $result;
+            }
+
             $chunkSize = $this->chunkSize();
             $rowNumber = 1;
             $chunk = [];
-            $dataRowsRead = 0;
-            $maxRows = $this->maxRows();
 
             while (($row = $this->readCsvRow($handle, $delimiter)) !== null) {
                 $rowNumber++;
@@ -125,40 +174,25 @@ class SeoUtmCsvImporterService
                     continue;
                 }
 
-                $dataRowsRead++;
-                $result['total_rows'] = $dataRowsRead;
-
-                if ($dataRowsRead > $maxRows) {
-                    $result['errors'][] = $this->makeError(
-                        0,
-                        null,
-                        'file_too_large',
-                        'El archivo excede el máximo permitido de ' . $maxRows . ' filas.',
-                        'file'
-                    );
-
-                    return $result;
-                }
-
                 $chunk[] = [
                     'row_number' => $rowNumber,
                     'row' => $this->associateRow($headerMap, $row),
                 ];
 
                 if (count($chunk) >= $chunkSize) {
-                    $this->processChunk($empresa, $companyDomains, $chunk, $result);
+                    $this->processChunk($empresa, $chunk, $result);
                     $chunk = [];
                 }
             }
 
-            if ($dataRowsRead === 0) {
+            if (($ownership['total_rows'] ?? 0) === 0) {
                 $result['errors'][] = $this->makeError(0, null, 'missing_data_rows', 'El CSV debe contener al menos una fila de datos.', 'file');
 
                 return $result;
             }
 
             if ($chunk !== []) {
-                $this->processChunk($empresa, $companyDomains, $chunk, $result);
+                $this->processChunk($empresa, $chunk, $result);
             }
         } finally {
             fclose($handle);
@@ -172,11 +206,10 @@ class SeoUtmCsvImporterService
     }
 
     /**
-     * @param  array<int, string>  $companyDomains
      * @param  array<int, array<string, mixed>>  $chunk
      * @param  array<string, mixed>  $result
      */
-    private function processChunk(Empresa $empresa, array $companyDomains, array $chunk, array &$result): void
+    private function processChunk(Empresa $empresa, array $chunk, array &$result): void
     {
         foreach ($chunk as $item) {
             $rowNumber = (int) $item['row_number'];
@@ -184,7 +217,7 @@ class SeoUtmCsvImporterService
             $csvId = $this->nullableScalar($csvRow['id'] ?? null);
 
             try {
-                $normalized = $this->normalizeImportRow($csvRow, $companyDomains);
+                $normalized = $this->normalizeImportRow($csvRow);
             } catch (\InvalidArgumentException $e) {
                 $result['failed']++;
                 $result['errors'][] = $this->makeError(
@@ -227,20 +260,15 @@ class SeoUtmCsvImporterService
 
     /**
      * @param  array<string, mixed>  $csvRow
-     * @param  array<int, string>  $companyDomains
      * @return array{payload: array<string, mixed>, warnings: array<int, array<string, string>>}
      */
-    private function normalizeImportRow(array $csvRow, array $companyDomains): array
+    private function normalizeImportRow(array $csvRow): array
     {
         $warnings = [];
         $extra = $this->parseExtraField($csvRow['extra'] ?? null, $warnings);
         $conversionDateTime = $this->normalizeDateTime($csvRow['created_at'] ?? null);
         $pageUrl = $this->normalizeUrl($csvRow['referrer'] ?? null, true, $warnings, 'referrer');
         $candidateDomains = $this->extractCandidateDomains($pageUrl, $extra);
-
-        if (! $this->matchesCompanyDomains($candidateDomains, $companyDomains)) {
-            throw new \InvalidArgumentException('La fila no pertenece a la empresa seleccionada porque ninguno de sus dominios coincide con referrer, extra.finalUrl o extra.target.', 2);
-        }
 
         $source = $this->normalizeText($csvRow['utm_source'] ?? null, 120, true, $warnings, 'utm_source');
         $medium = $this->normalizeText($csvRow['utm_medium'] ?? null, 120, true, $warnings, 'utm_medium');
@@ -272,6 +300,162 @@ class SeoUtmCsvImporterService
             ],
             'warnings' => $warnings,
         ];
+    }
+
+    /**
+     * @param  resource  $handle
+     * @param  array<string, int>  $headerMap
+     * @param  array<int, string>  $companyDomains
+     * @return array{
+     *   total_rows: int,
+     *   detected_domains: array<int, array{domain: string, count: int, external: bool, matches_company: bool}>,
+     *   matched_company_domain: string|null,
+     *   ownership_confidence: float,
+     *   file_ownership_passed: bool,
+     *   reason: string
+     * }
+     */
+    private function evaluateFileOwnership($handle, string $delimiter, array $headerMap, array $companyDomains, int $maxRows): array
+    {
+        $domainCounts = [];
+        $rowCount = 0;
+
+        while (($row = $this->readCsvRow($handle, $delimiter)) !== null) {
+            if ($this->isEmptyCsvRow($row)) {
+                continue;
+            }
+
+            $rowCount++;
+
+            if ($rowCount > $maxRows) {
+                return [
+                    'total_rows' => $rowCount,
+                    'detected_domains' => [],
+                    'matched_company_domain' => null,
+                    'ownership_confidence' => 0.0,
+                    'file_ownership_passed' => false,
+                    'reason' => 'El archivo excede el máximo permitido de ' . $maxRows . ' filas.',
+                ];
+            }
+
+            $associated = $this->associateRow($headerMap, $row);
+            $domainsInRow = $this->extractOwnershipDomainsFromRow($associated);
+
+            foreach ($domainsInRow as $domain) {
+                if (! isset($domainCounts[$domain])) {
+                    $domainCounts[$domain] = 0;
+                }
+
+                $domainCounts[$domain]++;
+            }
+        }
+
+        if ($rowCount === 0) {
+            return [
+                'total_rows' => 0,
+                'detected_domains' => [],
+                'matched_company_domain' => null,
+                'ownership_confidence' => 0.0,
+                'file_ownership_passed' => false,
+                'reason' => 'El CSV debe contener al menos una fila de datos.',
+            ];
+        }
+
+        arsort($domainCounts);
+
+        $companySignals = 0;
+        $nonExternalSignals = 0;
+        $matchedCompanyCounts = [];
+        $detectedDomains = [];
+
+        foreach ($domainCounts as $domain => $count) {
+            $isExternal = $this->isExternalReferenceDomain($domain);
+            $matchedCompany = $this->resolveMatchedCompanyDomain($domain, $companyDomains);
+
+            if ($matchedCompany !== null) {
+                $companySignals += $count;
+                if (! isset($matchedCompanyCounts[$matchedCompany])) {
+                    $matchedCompanyCounts[$matchedCompany] = 0;
+                }
+                $matchedCompanyCounts[$matchedCompany] += $count;
+            }
+
+            if (! $isExternal) {
+                $nonExternalSignals += $count;
+            }
+
+            $detectedDomains[] = [
+                'domain' => $domain,
+                'count' => (int) $count,
+                'external' => $isExternal,
+                'matches_company' => $matchedCompany !== null,
+            ];
+        }
+
+        $ownershipConfidence = $nonExternalSignals > 0
+            ? round($companySignals / $nonExternalSignals, 4)
+            : ($companySignals > 0 ? 1.0 : 0.0);
+
+        arsort($matchedCompanyCounts);
+        $matchedCompanyDomain = $matchedCompanyCounts === []
+            ? null
+            : (string) array_key_first($matchedCompanyCounts);
+
+        $minimumMatches = $this->ownershipMinimumMatches();
+        $minimumConfidence = $this->ownershipMinimumConfidence();
+
+        $passed = false;
+
+        if ($companySignals > 0) {
+            if ($nonExternalSignals === 0) {
+                $passed = $companySignals >= $minimumMatches;
+            } else {
+                $passed = $companySignals >= $minimumMatches
+                    && $ownershipConfidence >= $minimumConfidence;
+            }
+        }
+
+        if (! $passed) {
+            $reason = 'No se pudo confirmar que el archivo pertenezca a la empresa seleccionada. '
+                . 'Coincidencias de dominio empresa: ' . $companySignals
+                . ', señales no externas: ' . $nonExternalSignals
+                . ', confianza: ' . $ownershipConfidence . '.';
+        } else {
+            $reason = 'Archivo validado por ownership a nivel de archivo.';
+        }
+
+        return [
+            'total_rows' => $rowCount,
+            'detected_domains' => $detectedDomains,
+            'matched_company_domain' => $matchedCompanyDomain,
+            'ownership_confidence' => $ownershipConfidence,
+            'file_ownership_passed' => $passed,
+            'reason' => $reason,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array<int, string>
+     */
+    private function extractOwnershipDomainsFromRow(array $row): array
+    {
+        $warnings = [];
+        $extra = $this->parseExtraField($row['extra'] ?? null, $warnings);
+        $domains = [];
+
+        foreach ([
+            $row['referrer'] ?? null,
+            $extra['finalUrl'] ?? null,
+            $extra['target'] ?? null,
+        ] as $value) {
+            $domain = $this->extractDomainFromUrl($value);
+            if ($domain !== null) {
+                $domains[] = $domain;
+            }
+        }
+
+        return array_values(array_unique($domains));
     }
 
     /**
@@ -450,6 +634,33 @@ class SeoUtmCsvImporterService
                 if (substr($candidateDomain, -strlen($suffix)) === $suffix) {
                     return true;
                 }
+            }
+        }
+
+        return false;
+    }
+
+    private function resolveMatchedCompanyDomain(string $candidateDomain, array $companyDomains): ?string
+    {
+        foreach ($companyDomains as $companyDomain) {
+            if ($candidateDomain === $companyDomain) {
+                return $companyDomain;
+            }
+
+            $suffix = '.' . $companyDomain;
+            if (substr($candidateDomain, -strlen($suffix)) === $suffix) {
+                return $companyDomain;
+            }
+        }
+
+        return null;
+    }
+
+    private function isExternalReferenceDomain(string $domain): bool
+    {
+        foreach (self::EXTERNAL_REFERENCE_DOMAINS as $externalDomain) {
+            if ($domain === $externalDomain || substr($domain, -strlen('.' . $externalDomain)) === '.' . $externalDomain) {
+                return true;
             }
         }
 
@@ -772,6 +983,10 @@ class SeoUtmCsvImporterService
             'failed' => 0,
             'errors' => [],
             'warnings' => [],
+            'detected_domains' => [],
+            'matched_company_domain' => null,
+            'ownership_confidence' => 0.0,
+            'file_ownership_passed' => false,
             'file_info' => [
                 'filename' => isset($options['filename']) && is_string($options['filename'])
                     ? $options['filename']
@@ -865,6 +1080,28 @@ class SeoUtmCsvImporterService
         $window = (int) config('seo.csv_utm_import.duplicate_time_window_seconds', 60);
 
         return $window > 0 ? $window : 60;
+    }
+
+    private function ownershipMinimumMatches(): int
+    {
+        $value = (int) config('seo.csv_utm_import.ownership_min_matches', 3);
+
+        return $value > 0 ? $value : 3;
+    }
+
+    private function ownershipMinimumConfidence(): float
+    {
+        $value = (float) config('seo.csv_utm_import.ownership_min_confidence', 0.20);
+
+        if ($value < 0) {
+            return 0.20;
+        }
+
+        if ($value > 1) {
+            return 1.0;
+        }
+
+        return $value;
     }
 
     private function resolveErrorField(int $code): string
