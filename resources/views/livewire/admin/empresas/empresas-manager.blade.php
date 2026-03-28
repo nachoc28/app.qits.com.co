@@ -123,7 +123,7 @@
                                         <button
                                             x-ref="trigger"
                                             type="button"
-                                            class="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm hover:bg-gray-50"
+                                            class="inline-flex items-center rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
                                             @click="toggle()"
                                         >
                                             Acciones
@@ -249,7 +249,7 @@
 
                         <button
                             type="button"
-                            class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                            class="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
                             wire:click="show({{ $e->id }})"
                         >
                             Ver
@@ -257,7 +257,7 @@
 
                         <button
                             type="button"
-                            class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                            class="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
                             wire:click="edit({{ $e->id }})"
                         >
                             Editar
@@ -265,7 +265,7 @@
 
                         <button
                             type="button"
-                            class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                            class="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
                             wire:click="openToggle({{ $e->id }})"
                         >
                             {{ $e->active ? 'Inactivar' : 'Activar' }}
@@ -273,7 +273,7 @@
 
                         <button
                             type="button"
-                            class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                            class="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
                             wire:click="openUsers({{ $e->id }})"
                         >
                             Usuarios
@@ -281,7 +281,7 @@
 
                         <button
                             type="button"
-                            class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                            class="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
                             wire:click="openServices({{ $e->id }})"
                         >
                             Servicios
@@ -289,7 +289,7 @@
 
                         <button
                             type="button"
-                            class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                            class="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
                             wire:click="openWpIntegration({{ $e->id }})"
                         >
                             WP UTM
@@ -297,7 +297,7 @@
 
                         <button
                             type="button"
-                            class="rounded-md border border-red-300 bg-white px-3 py-2 text-sm text-red-600"
+                            class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
                             onclick="if(confirm('¿Eliminar empresa?')) @this.call('destroy', {{ $e->id }})"
                         >
                             Eliminar
@@ -589,7 +589,7 @@
                                             <div class="flex flex-wrap justify-end gap-2">
                                                 <button
                                                     type="button"
-                                                    class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm hover:bg-gray-50"
+                                                    class="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
                                                     wire:click="editUser({{ $u['id'] }})"
                                                 >
                                                     Editar
@@ -597,7 +597,7 @@
 
                                                 <button
                                                     type="button"
-                                                    class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm hover:bg-gray-50"
+                                                    class="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
                                                     wire:click="openToggleUser({{ $u['id'] }})"
                                                 >
                                                     {{ ($u['active'] ?? true) ? 'Inactivar' : 'Activar' }}
@@ -605,7 +605,7 @@
 
                                                 <button
                                                     type="button"
-                                                    class="rounded-md border border-red-300 bg-white px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                                                    class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
                                                     wire:click="openDeleteUser({{ $u['id'] }})"
                                                 >
                                                     Eliminar
@@ -646,7 +646,7 @@
                             <div class="mt-4 grid grid-cols-1 gap-2">
                                 <button
                                     type="button"
-                                    class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                                    class="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
                                     wire:click="editUser({{ $u['id'] }})"
                                 >
                                     Editar
@@ -654,7 +654,7 @@
 
                                 <button
                                     type="button"
-                                    class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                                    class="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
                                     wire:click="openToggleUser({{ $u['id'] }})"
                                 >
                                     {{ ($u['active'] ?? true) ? 'Inactivar' : 'Activar' }}
@@ -662,7 +662,7 @@
 
                                 <button
                                     type="button"
-                                    class="rounded-md border border-red-300 bg-white px-3 py-2 text-sm text-red-600"
+                                    class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
                                     wire:click="openDeleteUser({{ $u['id'] }})"
                                 >
                                     Eliminar

@@ -8,18 +8,23 @@ use App\Services\Seo\SeoPropertyConfigurationService;
 use App\Services\Seo\SeoPropertyConfigurationState;
 use App\Services\Seo\SearchConsoleClientService;
 use App\Services\Seo\SearchConsoleSyncService;
+use App\Services\Seo\SeoUtmCsvImporterService;
 use App\Services\Seo\Ga4ClientService;
 use App\Services\Seo\SeoPropertyContext;
 use App\Models\SeoGscDailyMetric;
 use App\Models\SeoGscQuery;
 use App\Models\SeoGscPage;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Throwable;
 
 class EmpresaSeoSettings extends Component
 {
+    use WithFileUploads;
+
     /** @var Empresa */
     public $empresa;
 
@@ -82,6 +87,15 @@ class EmpresaSeoSettings extends Component
 
     /** @var string|null */
     public $syncGscError = null;
+
+    /** @var mixed */
+    public $utmCsvFile;
+
+    /** @var array<string, mixed>|null */
+    public $utmCsvImportResult = null;
+
+    /** @var string|null */
+    public $utmCsvImportError = null;
 
     protected function rules(): array
     {
@@ -333,9 +347,85 @@ class EmpresaSeoSettings extends Component
         }
     }
 
+    public function updatedUtmCsvFile(): void
+    {
+        $this->resetCsvImportFeedback();
+        $this->validateOnly('utmCsvFile', $this->csvImportRules(), $this->csvImportMessages());
+    }
+
+    public function importUtmCsv(SeoUtmCsvImporterService $csvImporter): void
+    {
+        $this->resetCsvImportFeedback();
+
+        $this->validate($this->csvImportRules(), $this->csvImportMessages());
+
+        $storedPath = null;
+
+        try {
+            $originalName = method_exists($this->utmCsvFile, 'getClientOriginalName')
+                ? (string) $this->utmCsvFile->getClientOriginalName()
+                : 'utm-import.csv';
+
+            $extension = method_exists($this->utmCsvFile, 'getClientOriginalExtension')
+                ? strtolower((string) $this->utmCsvFile->getClientOriginalExtension())
+                : 'csv';
+
+            $filename = 'empresa-' . $this->empresa->id
+                . '-utm-' . now()->format('YmdHis')
+                . '-' . Str::random(8)
+                . '.' . ($extension !== '' ? $extension : 'csv');
+
+            $storedPath = $this->utmCsvFile->storeAs('tmp/seo/utm-imports', $filename, 'local');
+
+            $result = $csvImporter->import(
+                $this->empresa,
+                storage_path('app/' . $storedPath),
+                ['filename' => $originalName]
+            );
+
+            $this->utmCsvImportResult = $this->prepareImportResultForView($result);
+
+            if (($result['created'] ?? 0) > 0) {
+                session()->flash('utm_csv_import_saved', 'CSV UTM importado correctamente.');
+            }
+        } catch (Throwable $e) {
+            Log::error('[SEO][UTM][CSV_IMPORT] Error durante la importación manual.', [
+                'empresa_id' => $this->empresa->id,
+                'filename' => isset($originalName) ? $originalName : null,
+                'exception_class' => get_class($e),
+                'exception_message' => $e->getMessage(),
+            ]);
+
+            $this->utmCsvImportError = 'Error interno al importar el CSV UTM.';
+        } finally {
+            if (is_string($storedPath) && Storage::disk('local')->exists($storedPath)) {
+                Storage::disk('local')->delete($storedPath);
+            }
+
+            $this->utmCsvFile = null;
+        }
+    }
+
     public function render()
     {
         return view('livewire.admin.seo.empresa-seo-settings');
+    }
+
+    private function csvImportRules(): array
+    {
+        return [
+            'utmCsvFile' => ['required', 'file', 'mimes:csv,txt', 'max:10240'],
+        ];
+    }
+
+    private function csvImportMessages(): array
+    {
+        return [
+            'utmCsvFile.required' => 'Debes seleccionar un archivo CSV.',
+            'utmCsvFile.file' => 'El archivo cargado no es válido.',
+            'utmCsvFile.mimes' => 'El archivo debe estar en formato CSV.',
+            'utmCsvFile.max' => 'El archivo no puede superar 10 MB.',
+        ];
     }
 
     private function loadConfiguration(SeoPropertyConfigurationService $configurationService): void
@@ -369,5 +459,34 @@ class EmpresaSeoSettings extends Component
         $this->utmTrackingEnabled = (bool) $property->utm_tracking_enabled;
         $this->gscEnabled = (bool) $property->gsc_enabled;
         $this->ga4Enabled = (bool) $property->ga4_enabled;
+    }
+
+    private function resetCsvImportFeedback(): void
+    {
+        $this->utmCsvImportResult = null;
+        $this->utmCsvImportError = null;
+        $this->resetErrorBag('utmCsvFile');
+    }
+
+    /**
+     * @param  array<string, mixed>  $result
+     * @return array<string, mixed>
+     */
+    private function prepareImportResultForView(array $result): array
+    {
+        $errors = isset($result['errors']) && is_array($result['errors'])
+            ? $result['errors']
+            : [];
+
+        $warnings = isset($result['warnings']) && is_array($result['warnings'])
+            ? $result['warnings']
+            : [];
+
+        $result['errors_preview'] = array_slice($errors, 0, 10);
+        $result['errors_remaining'] = max(count($errors) - count($result['errors_preview']), 0);
+        $result['warnings_preview'] = array_slice($warnings, 0, 5);
+        $result['warnings_remaining'] = max(count($warnings) - count($result['warnings_preview']), 0);
+
+        return $result;
     }
 }

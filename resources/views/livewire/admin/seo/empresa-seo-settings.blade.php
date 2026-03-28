@@ -5,6 +5,12 @@
         </div>
     @endif
 
+    @if (session()->has('utm_csv_import_saved'))
+        <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+            {{ session('utm_csv_import_saved') }}
+        </div>
+    @endif
+
     <div class="rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm ring-1 ring-blue-100 sm:p-6">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -259,4 +265,137 @@
             </button>
         </div>
     </form>
+
+    <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5 sm:p-6">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+                <h3 class="text-base font-semibold text-gray-900">Importación histórica UTM</h3>
+                <p class="mt-1 text-sm text-gray-500">
+                    Carga un CSV exportado desde WordPress para importar conversiones históricas. El archivo se guarda temporalmente, se procesa desde el servicio SEO y luego se elimina.
+                </p>
+            </div>
+        </div>
+
+        <form wire:submit.prevent="importUtmCsv" class="mt-5">
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <div class="min-w-0 xl:col-span-2">
+                    <label for="utm_csv_file" class="text-sm font-medium text-gray-700">Archivo CSV UTM</label>
+                    <input
+                        id="utm_csv_file"
+                        type="file"
+                        wire:model="utmCsvFile"
+                        accept=".csv,text/csv"
+                        class="mt-1 block w-full text-sm text-gray-700"
+                    >
+                    <p class="mt-1 text-xs text-gray-500">Solo CSV. Máximo 10 MB. Se valida dominio, duplicados e idempotencia antes de persistir.</p>
+                    @error('utmCsvFile') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                </div>
+
+                <div class="flex items-end">
+                    <button
+                        type="submit"
+                        wire:loading.attr="disabled"
+                        wire:target="utmCsvFile,importUtmCsv"
+                        class="inline-flex w-full items-center justify-center rounded-md bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        <span wire:loading.remove wire:target="importUtmCsv">Importar CSV UTM</span>
+                        <span wire:loading wire:target="importUtmCsv" class="inline-flex items-center">
+                            <span class="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-emerald-200 border-r-white"></span>
+                            Procesando...
+                        </span>
+                    </button>
+                </div>
+            </div>
+
+            <div wire:loading wire:target="utmCsvFile" class="mt-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                Subiendo archivo temporal para validación.
+            </div>
+
+            <div wire:loading wire:target="importUtmCsv" class="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                Procesando importación histórica. Esta operación puede tardar varios segundos según el tamaño del CSV.
+            </div>
+        </form>
+
+        @if($utmCsvImportError)
+            <div class="mt-6 rounded-lg border border-red-200 bg-red-50 p-4">
+                <p class="text-sm font-medium text-red-800">Error en importación CSV</p>
+                <p class="mt-1 text-sm text-red-700">{{ $utmCsvImportError }}</p>
+            </div>
+        @endif
+
+        @if($utmCsvImportResult)
+            <div class="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-emerald-800">Resultado de la importación</p>
+                        <p class="mt-1 text-xs text-emerald-700">
+                            Archivo: {{ $utmCsvImportResult['file_info']['filename'] ?? 'CSV' }}
+                        </p>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
+                        <div class="rounded-lg bg-white px-3 py-2 text-center shadow-sm ring-1 ring-emerald-100">
+                            <div class="font-semibold text-gray-900">{{ $utmCsvImportResult['total_rows'] ?? 0 }}</div>
+                            <div class="mt-1 text-gray-500">Total</div>
+                        </div>
+                        <div class="rounded-lg bg-white px-3 py-2 text-center shadow-sm ring-1 ring-emerald-100">
+                            <div class="font-semibold text-emerald-700">{{ $utmCsvImportResult['created'] ?? 0 }}</div>
+                            <div class="mt-1 text-gray-500">Creadas</div>
+                        </div>
+                        <div class="rounded-lg bg-white px-3 py-2 text-center shadow-sm ring-1 ring-emerald-100">
+                            <div class="font-semibold text-amber-700">{{ $utmCsvImportResult['skipped_duplicate'] ?? 0 }}</div>
+                            <div class="mt-1 text-gray-500">Duplicadas</div>
+                        </div>
+                        <div class="rounded-lg bg-white px-3 py-2 text-center shadow-sm ring-1 ring-emerald-100">
+                            <div class="font-semibold text-red-700">{{ $utmCsvImportResult['failed'] ?? 0 }}</div>
+                            <div class="mt-1 text-gray-500">Fallidas</div>
+                        </div>
+                    </div>
+                </div>
+
+                @if(!empty($utmCsvImportResult['errors_preview']))
+                    <div class="mt-5 rounded-lg border border-red-200 bg-white p-4">
+                        <p class="text-sm font-medium text-red-800">Errores detectados</p>
+                        <ul class="mt-3 space-y-2 text-sm text-red-700">
+                            @foreach($utmCsvImportResult['errors_preview'] as $error)
+                                <li class="rounded-md border border-red-100 bg-red-50 px-3 py-2 break-words">
+                                    <span class="font-semibold">Fila {{ $error['row'] ?? '-' }}</span>
+                                    @if(!empty($error['csv_id']))
+                                        <span class="text-red-500"> · ID {{ $error['csv_id'] }}</span>
+                                    @endif
+                                    <div class="mt-1 text-xs text-red-700">{{ $error['message'] ?? 'Error de importación.' }}</div>
+                                </li>
+                            @endforeach
+                        </ul>
+
+                        @if(($utmCsvImportResult['errors_remaining'] ?? 0) > 0)
+                            <p class="mt-3 text-xs text-red-600">
+                                Se omitieron {{ $utmCsvImportResult['errors_remaining'] }} errores adicionales para mantener la vista compacta.
+                            </p>
+                        @endif
+                    </div>
+                @endif
+
+                @if(!empty($utmCsvImportResult['warnings_preview']))
+                    <div class="mt-5 rounded-lg border border-yellow-200 bg-white p-4">
+                        <p class="text-sm font-medium text-yellow-800">Advertencias</p>
+                        <ul class="mt-3 space-y-2 text-sm text-yellow-700">
+                            @foreach($utmCsvImportResult['warnings_preview'] as $warning)
+                                <li class="rounded-md border border-yellow-100 bg-yellow-50 px-3 py-2 break-words">
+                                    <span class="font-semibold">Fila {{ $warning['row'] ?? '-' }}</span>
+                                    <div class="mt-1 text-xs text-yellow-700">{{ $warning['message'] ?? 'Advertencia de importación.' }}</div>
+                                </li>
+                            @endforeach
+                        </ul>
+
+                        @if(($utmCsvImportResult['warnings_remaining'] ?? 0) > 0)
+                            <p class="mt-3 text-xs text-yellow-600">
+                                Se omitieron {{ $utmCsvImportResult['warnings_remaining'] }} advertencias adicionales.
+                            </p>
+                        @endif
+                    </div>
+                @endif
+            </div>
+        @endif
+    </div>
 </div>
