@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api\Seo;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Support\Str;
 
 class UtmConversionIngestRequest extends FormRequest
 {
@@ -60,19 +61,35 @@ class UtmConversionIngestRequest extends FormRequest
             'conversion_datetime.required' => 'conversion_datetime es requerido.',
             'conversion_datetime.date'     => 'conversion_datetime debe ser una fecha válida.',
             'page_url.url'                 => 'page_url debe ser una URL válida.',
+            'event_name.max'               => 'event_name no debe superar 120 caracteres.',
             'source_record_id.required'    => 'source_record_id es requerido.',
             'source_record_id.max'         => 'source_record_id no debe superar 191 caracteres.',
+            'source_record_id.string'      => 'source_record_id debe ser texto.',
             'raw_payload_json.array'       => 'raw_payload_json debe ser un objeto/array JSON válido.',
         ];
     }
 
     protected function failedValidation(Validator $validator): void
     {
+        $errors = $validator->errors()->toArray();
+        $failedFields = array_keys($errors);
+
+        $requestIdHeader = $this->header('X-Request-Id');
+        $requestId = is_string($requestIdHeader) && trim($requestIdHeader) !== ''
+            ? trim($requestIdHeader)
+            : (string) Str::uuid();
+
         throw new HttpResponseException(
             response()->json([
                 'success' => false,
                 'message' => 'El payload de conversión UTM no es válido.',
-                'errors'  => $validator->errors(),
+                'error_code' => 'VALIDATION_FAILED',
+                'request_id' => $requestId,
+                'errors'  => $errors,
+                'failed_fields' => $failedFields,
+                'debug' => [
+                    'received_fields' => array_keys($this->all()),
+                ],
             ], 422)
         );
     }
