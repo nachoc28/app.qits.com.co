@@ -47,6 +47,14 @@ return [
         'timeout_seconds' => (int) env('WHATSAPP_CLOUD_API_TIMEOUT', 20),
     ],
 
+    // Credenciales globales del numero emisor aprobado de QITS para templates.
+    'template_sender' => [
+        'access_token' => env('WHATSAPP_TOKEN', ''),
+        'phone_number_id' => env('WHATSAPP_PHONE_ID', ''),
+        // Reservado para administracion futura (no requerido por sendTemplate actual).
+        'waba_id' => env('WHATSAPP_WABA_ID', ''),
+    ],
+
     'dispatch' => [
         // true: encola el envio; false: envio sincrono.
         'async' => env('WHATSAPP_HUB_DISPATCH_ASYNC', true),

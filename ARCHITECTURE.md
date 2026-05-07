@@ -555,7 +555,7 @@ Service: WordpressFormNotificationIngestService
 Job: DispatchWordpressFormNotificationJob
   - validates queued window and link validity
   - reconstructs URL button parameter from token_encrypted
-  - sends WhatsApp template through WhatsAppApiClient::sendTemplate()
+  - sends WhatsApp template through WhatsAppApiClient::sendTemplate() using global QITS sender credentials
   - updates lifecycle status and provider_response_json
   ↓
 End user opens GET /s/{token}
@@ -653,6 +653,51 @@ End user opens GET /s/{token}
   - `whatsapp_hub.form_notifications_template.status`
 - Expected status values: `approved | pending | disabled`.
 - If template status is not `approved`, notification is stored as `awaiting_template`.
+
+**Global WhatsApp Sender Credentials (QITS):**
+- Environment variables:
+  - `WHATSAPP_TOKEN`
+  - `WHATSAPP_PHONE_ID`
+  - `WHATSAPP_WABA_ID`
+- Config mapping (`config/whatsapp_hub.php`):
+  - `whatsapp_hub.template_sender.access_token`
+  - `whatsapp_hub.template_sender.phone_number_id`
+  - `whatsapp_hub.template_sender.waba_id`
+- Current runtime usage:
+  - `WHATSAPP_TOKEN` is used as global sender access token.
+  - `WHATSAPP_PHONE_ID` is used as global sender `phone_number_id` (approved QITS number).
+  - `WHATSAPP_WABA_ID` is available in config and reserved for future administration; it is not required by current template dispatch.
+
+**Separation of Responsibilities (Sender vs Recipient):**
+- Global QITS credentials define which approved sender number dispatches template messages.
+- `empresa_whatsapp_settings.destination_phone` defines recipient phone number.
+- `empresa_whatsapp_settings.destination_opt_in`, `destination_opt_in_at`, and `destination_opt_in_source` validate recipient authorization.
+- `empresa_whatsapp_settings` is no longer treated as source of sender credentials in this flow.
+
+**Components Affected by Sender-Credential Change:**
+- `config/whatsapp_hub.php`
+- `app/Services/WhatsAppHub/WhatsAppApiClient.php`
+
+**Updated Template Dispatch Path (Sender Credentials):**
+```
+WordPress form submit
+  -> QITS receives and validates payload
+  -> QITS resolves empresa context
+  -> QITS validates service active + destination_phone + opt-in + template approved + rate limit
+  -> Job calls WhatsAppApiClient::sendTemplate
+  -> sendTemplate uses WHATSAPP_TOKEN + WHATSAPP_PHONE_ID as global QITS sender credentials
+  -> destination_phone is used only as recipient
+  -> Meta/WhatsApp receives template message
+```
+
+**Operational Note (.env):**
+For production, define:
+```
+WHATSAPP_TOKEN=
+WHATSAPP_PHONE_ID=
+WHATSAPP_WABA_ID=
+```
+`WHATSAPP_WABA_ID` may be configured even though current template dispatch does not consume it directly.
 
 **Recommended Template Content (Operational Reference):**
 ```
@@ -753,8 +798,20 @@ POST /api/{version}/{module}/{resource}
 ```
 
 ### Authentication
-**Method:** HMAC-SHA256 signature in `X-Signature` header  
+**Method:** HMAC-SHA256 signature (module-specific header scheme)  
 **Payload format:** JSON
+
+**Important:** Do not assume `X-Signature` for every endpoint. Some integrations use a module-specific signature header set.
+
+**Module-specific schemes (current state):**
+- **SEO UTM ingestion:** can use the `X-Signature` scheme documented below when implemented that way.
+- **WordPress Form Notifications:** uses the following headers:
+  - `X-QITS-Key`
+  - `X-QITS-Timestamp`
+  - `X-QITS-Nonce`
+  - `X-QITS-Signature`
+  - Signed path: `/api/wordpress/form-notifications`
+  - Signature input: exact JSON body bytes sent in the request (no reformatting/normalization).
 
 **Example (WordPress UTM Tracker):**
 ```bash

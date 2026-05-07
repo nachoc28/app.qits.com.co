@@ -880,6 +880,17 @@
                     </div>
                 @endif
 
+                @if(!empty($wpGlobalSenderWarnings))
+                    <div class="rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+                        <div class="font-semibold">Advertencias del emisor WhatsApp QITS</div>
+                        <ul class="mt-2 list-disc space-y-1 pl-5">
+                            @foreach($wpGlobalSenderWarnings as $warning)
+                                <li>{{ $warning }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
                 @if($wpPlainSecret)
                     <div class="rounded-xl border border-green-200 bg-green-50 p-4">
                         <div class="text-sm font-semibold text-green-800">Client secret generado</div>
@@ -925,6 +936,50 @@
                     <div class="rounded-xl border border-gray-200 p-4">
                         <div class="text-xs uppercase tracking-wide text-gray-500">Último uso</div>
                         <div class="mt-1 break-words text-sm text-gray-900">{{ $wpIntegrationLastUsedAt ?: 'Sin uso registrado' }}</div>
+                    </div>
+                </div>
+
+                <div class="rounded-xl border border-gray-200 p-4">
+                    <div class="mb-3 text-sm font-semibold text-gray-900">Estado del emisor WhatsApp QITS</div>
+
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div class="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                            <div class="text-xs uppercase tracking-wide text-gray-500">Phone Number ID configurado</div>
+                            <div class="mt-1 text-sm text-gray-900">
+                                {{ $wpGlobalPhoneIdConfigured ? 'Sí' : 'No' }}
+                                @if($wpGlobalPhoneIdConfigured && $wpGlobalPhoneIdMasked)
+                                    <span class="text-gray-500">({{ $wpGlobalPhoneIdMasked }})</span>
+                                @endif
+                            </div>
+                        </div>
+
+                        <div class="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                            <div class="text-xs uppercase tracking-wide text-gray-500">Access Token configurado</div>
+                            <div class="mt-1 text-sm text-gray-900">{{ $wpGlobalAccessTokenConfigured ? 'Sí' : 'No' }}</div>
+                        </div>
+
+                        <div class="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                            <div class="text-xs uppercase tracking-wide text-gray-500">WABA ID configurado</div>
+                            <div class="mt-1 text-sm text-gray-900">
+                                {{ $wpGlobalWabaIdConfigured ? 'Sí' : 'No' }}
+                                <span class="text-gray-500">(opcional / reservado)</span>
+                            </div>
+                        </div>
+
+                        <div class="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                            <div class="text-xs uppercase tracking-wide text-gray-500">Plantilla configurada</div>
+                            <div class="mt-1 break-words text-sm text-gray-900">{{ $wpTemplateConfigName !== '' ? $wpTemplateConfigName : 'Sin configurar' }}</div>
+                        </div>
+
+                        <div class="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                            <div class="text-xs uppercase tracking-wide text-gray-500">Idioma plantilla</div>
+                            <div class="mt-1 text-sm text-gray-900">{{ $wpTemplateConfigLanguage !== '' ? $wpTemplateConfigLanguage : 'Sin configurar' }}</div>
+                        </div>
+
+                        <div class="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                            <div class="text-xs uppercase tracking-wide text-gray-500">Estado plantilla</div>
+                            <div class="mt-1 text-sm text-gray-900">{{ $wpTemplateConfigStatus !== '' ? $wpTemplateConfigStatus : 'Sin configurar' }}</div>
+                        </div>
                     </div>
                 </div>
 

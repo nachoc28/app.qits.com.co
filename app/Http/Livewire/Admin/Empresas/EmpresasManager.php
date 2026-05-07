@@ -112,6 +112,14 @@ class EmpresasManager extends Component
     public $wpDestinationOptInSource = '';
     public $wpFormServiceActive = false;
     public $wpSettingsWarning = null;
+    public $wpGlobalPhoneIdConfigured = false;
+    public $wpGlobalPhoneIdMasked = null;
+    public $wpGlobalAccessTokenConfigured = false;
+    public $wpGlobalWabaIdConfigured = false;
+    public $wpTemplateConfigName = '';
+    public $wpTemplateConfigLanguage = '';
+    public $wpTemplateConfigStatus = 'pending';
+    public $wpGlobalSenderWarnings = [];
 
     protected function baseRules(): array
     {
@@ -691,11 +699,21 @@ public function closeWpIntegration(): void
     $this->wpDestinationOptInSource = '';
     $this->wpFormServiceActive = false;
     $this->wpSettingsWarning = null;
+    $this->wpGlobalPhoneIdConfigured = false;
+    $this->wpGlobalPhoneIdMasked = null;
+    $this->wpGlobalAccessTokenConfigured = false;
+    $this->wpGlobalWabaIdConfigured = false;
+    $this->wpTemplateConfigName = '';
+    $this->wpTemplateConfigLanguage = '';
+    $this->wpTemplateConfigStatus = 'pending';
+    $this->wpGlobalSenderWarnings = [];
 }
 
 public function refreshWpIntegrationState(bool $preserveSecret = false): void
 {
     if (! $this->wpEmpresaId) return;
+
+    $this->loadWpGlobalSenderState();
 
     if (! $preserveSecret) {
         $this->wpPlainSecret = null;
@@ -840,6 +858,50 @@ private function loadWpWhatsAppSettings(): void
     if ($this->wpFormServiceActive && (! $hasPhone || ! $hasOptIn)) {
         $this->wpSettingsWarning = 'El servicio formularios-whatsapp-api está activo, pero falta destination_phone u opt-in confirmado.';
     }
+}
+
+private function loadWpGlobalSenderState(): void
+{
+    $phoneId = trim((string) config('whatsapp_hub.template_sender.phone_number_id', ''));
+    $accessToken = trim((string) config('whatsapp_hub.template_sender.access_token', ''));
+    $wabaId = trim((string) config('whatsapp_hub.template_sender.waba_id', ''));
+
+    $this->wpGlobalPhoneIdConfigured = $phoneId !== '';
+    $this->wpGlobalPhoneIdMasked = $this->maskConfigValue($phoneId);
+    $this->wpGlobalAccessTokenConfigured = $accessToken !== '';
+    $this->wpGlobalWabaIdConfigured = $wabaId !== '';
+    $this->wpTemplateConfigName = trim((string) config('whatsapp_hub.form_notifications_template.name', ''));
+    $this->wpTemplateConfigLanguage = trim((string) config('whatsapp_hub.form_notifications_template.language', 'es_CO'));
+    $this->wpTemplateConfigStatus = trim((string) config('whatsapp_hub.form_notifications_template.status', 'pending'));
+
+    $this->wpGlobalSenderWarnings = [];
+
+    if (! $this->wpGlobalAccessTokenConfigured) {
+        $this->wpGlobalSenderWarnings[] = 'Falta WHATSAPP_TOKEN en la configuracion global del emisor QITS.';
+    }
+
+    if (! $this->wpGlobalPhoneIdConfigured) {
+        $this->wpGlobalSenderWarnings[] = 'Falta WHATSAPP_PHONE_ID en la configuracion global del emisor QITS.';
+    }
+
+    if ($this->wpTemplateConfigStatus !== 'approved') {
+        $this->wpGlobalSenderWarnings[] = 'La plantilla configurada para WordPress Form Notifications no esta en estado approved.';
+    }
+}
+
+private function maskConfigValue(string $value): ?string
+{
+    $value = trim($value);
+    if ($value === '') {
+        return null;
+    }
+
+    $length = strlen($value);
+    if ($length <= 4) {
+        return str_repeat('*', $length);
+    }
+
+    return substr($value, 0, 2) . str_repeat('*', max(0, $length - 4)) . substr($value, -2);
 }
 
 public function createWpIntegration(): void

@@ -74,8 +74,8 @@ class WhatsAppApiClient
         $destinationPhone = trim($destinationPhone);
         $templateName = trim($templateName);
         $templateLanguage = trim($templateLanguage);
-        $phoneNumberId = trim((string) $setting->whatsapp_phone_number_id);
-        $accessToken = trim((string) $setting->whatsapp_access_token);
+        $phoneNumberId = trim((string) config('whatsapp_hub.template_sender.phone_number_id', ''));
+        $accessToken = trim((string) config('whatsapp_hub.template_sender.access_token', ''));
 
         if ($destinationPhone === '') {
             return $this->normalizedError('Destination phone is required.');
@@ -86,7 +86,7 @@ class WhatsAppApiClient
         }
 
         if ($phoneNumberId === '' || $accessToken === '') {
-            return $this->normalizedError('WhatsApp credentials are incomplete in empresa_whatsapp_settings.');
+            return $this->normalizedError('Global WhatsApp template credentials are incomplete in WHATSAPP_TOKEN/WHATSAPP_PHONE_ID.');
         }
 
         $tokenParam = $this->extractTokenParam($buttonUrlParameter);
@@ -136,7 +136,7 @@ class WhatsAppApiClient
         ];
 
         try {
-            $response = $this->post($setting, $payload);
+            $response = $this->postTemplate($phoneNumberId, $accessToken, $payload);
         } catch (\Throwable $e) {
             return $this->normalizedError('HTTP request failed for WhatsApp template dispatch.', [
                 'exception' => $e->getMessage(),
@@ -183,6 +183,23 @@ class WhatsAppApiClient
 
         return Http::timeout($timeout)
             ->withToken((string) $setting->whatsapp_access_token)
+            ->acceptJson()
+            ->post($url, $payload);
+    }
+
+    /**
+     * @param  array<string,mixed>  $payload
+     */
+    private function postTemplate(string $phoneNumberId, string $accessToken, array $payload): Response
+    {
+        $baseUrl = rtrim((string) config('whatsapp_hub.cloud_api.base_url', 'https://graph.facebook.com'), '/');
+        $version = trim((string) config('whatsapp_hub.cloud_api.version', 'v20.0'), '/');
+        $timeout = (int) config('whatsapp_hub.cloud_api.timeout_seconds', 20);
+
+        $url = $baseUrl . '/' . $version . '/' . $phoneNumberId . '/messages';
+
+        return Http::timeout($timeout)
+            ->withToken($accessToken)
             ->acceptJson()
             ->post($url, $payload);
     }
