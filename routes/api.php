@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\UtmController;
 use App\Http\Controllers\Api\LeadController;
 use App\Http\Controllers\Api\WhatsAppHub\FormIngressController;
+use App\Http\Controllers\Api\WhatsAppHub\WordpressFormNotificationIngestController;
 use App\Http\Controllers\Api\Seo\UtmConversionIngestController;
 
 /*
@@ -32,6 +33,18 @@ Route::post(
     '/seo/utm-conversions',
     [UtmConversionIngestController::class, 'store']
 )->middleware('integration.auth:seo.utm_conversions_ingest');
+
+/*
+|-|------------------------------------------------------------------------
+| WhatsApp Form Notifications — WordPress ingest
+|-|------------------------------------------------------------------------
+| Endpoint para recibir submissions de formularios WordPress.
+| Requiere scope técnico: wordpress.form_notifications_ingest
+*/
+Route::post(
+    '/wordpress/form-notifications',
+    [WordpressFormNotificationIngestController::class, 'store']
+)->middleware('integration.auth:wordpress.form_notifications_ingest');
 
 /*
 |--------------------------------------------------------------------------

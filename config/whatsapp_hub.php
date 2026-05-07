@@ -56,4 +56,15 @@ return [
         'queue_name' => env('WHATSAPP_HUB_QUEUE_NAME', 'whatsapp-hub'),
     ],
 
+    // URL base para links publicos (fallback a APP_URL si no se define).
+    'public_link_base_url' => env('WHATSAPP_HUB_PUBLIC_LINK_BASE_URL', env('APP_URL', '')),
+
+    // Plantilla usada para notificaciones de formularios WordPress.
+    'form_notifications_template' => [
+        'name' => env('WHATSAPP_HUB_FORM_TEMPLATE_NAME', ''),
+        'language' => env('WHATSAPP_HUB_FORM_TEMPLATE_LANGUAGE', 'es_CO'),
+        // Valores esperados: approved | pending | disabled
+        'status' => env('WHATSAPP_HUB_FORM_TEMPLATE_STATUS', 'pending'),
+    ],
+
 ];

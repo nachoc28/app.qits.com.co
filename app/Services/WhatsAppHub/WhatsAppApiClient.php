@@ -58,6 +58,119 @@ class WhatsAppApiClient
     }
 
     /**
+     * Envia un mensaje de plantilla por WhatsApp Cloud API.
+     *
+     * @param string[] $bodyParameters
+     * @return array<string,mixed>
+     */
+    public function sendTemplate(
+        EmpresaWhatsAppSetting $setting,
+        string $destinationPhone,
+        string $templateName,
+        string $templateLanguage,
+        array $bodyParameters,
+        string $buttonUrlParameter
+    ): array {
+        $destinationPhone = trim($destinationPhone);
+        $templateName = trim($templateName);
+        $templateLanguage = trim($templateLanguage);
+        $phoneNumberId = trim((string) $setting->whatsapp_phone_number_id);
+        $accessToken = trim((string) $setting->whatsapp_access_token);
+
+        if ($destinationPhone === '') {
+            return $this->normalizedError('Destination phone is required.');
+        }
+
+        if ($templateName === '' || $templateLanguage === '') {
+            return $this->normalizedError('Template name and language are required.');
+        }
+
+        if ($phoneNumberId === '' || $accessToken === '') {
+            return $this->normalizedError('WhatsApp credentials are incomplete in empresa_whatsapp_settings.');
+        }
+
+        $tokenParam = $this->extractTokenParam($buttonUrlParameter);
+        if ($tokenParam === '') {
+            return $this->normalizedError('Template button token parameter is required.');
+        }
+
+        $bodyComponents = [];
+        foreach ($bodyParameters as $value) {
+            $bodyComponents[] = [
+                'type' => 'text',
+                'text' => (string) $value,
+            ];
+        }
+
+        $components = [];
+        if ($bodyComponents !== []) {
+            $components[] = [
+                'type' => 'body',
+                'parameters' => $bodyComponents,
+            ];
+        }
+
+        $components[] = [
+            'type' => 'button',
+            'sub_type' => 'url',
+            'index' => '0',
+            'parameters' => [
+                [
+                    'type' => 'text',
+                    'text' => $tokenParam,
+                ],
+            ],
+        ];
+
+        $payload = [
+            'messaging_product' => 'whatsapp',
+            'to' => $destinationPhone,
+            'type' => 'template',
+            'template' => [
+                'name' => $templateName,
+                'language' => [
+                    'code' => $templateLanguage,
+                ],
+                'components' => $components,
+            ],
+        ];
+
+        try {
+            $response = $this->post($setting, $payload);
+        } catch (\Throwable $e) {
+            return $this->normalizedError('HTTP request failed for WhatsApp template dispatch.', [
+                'exception' => $e->getMessage(),
+            ]);
+        }
+
+        $raw = $response->json();
+        if (! is_array($raw)) {
+            $raw = ['raw' => $response->body()];
+        }
+
+        $messageId = null;
+        if (isset($raw['messages'][0]['id']) && is_string($raw['messages'][0]['id'])) {
+            $messageId = $raw['messages'][0]['id'];
+        }
+
+        if ($response->successful()) {
+            return [
+                'success' => true,
+                'whatsapp_message_id' => $messageId,
+                'raw_response' => $raw,
+                'error' => null,
+            ];
+        }
+
+        return [
+            'success' => false,
+            'whatsapp_message_id' => $messageId,
+            'raw_response' => $raw,
+            'error' => 'WHATSAPP_TEMPLATE_REJECTED',
+        ];
+    }
+
+    /**
      * @param  array<string,mixed>  $payload
      */
     private function post(EmpresaWhatsAppSetting $setting, array $payload): Response
@@ -72,5 +185,42 @@ class WhatsAppApiClient
             ->withToken((string) $setting->whatsapp_access_token)
             ->acceptJson()
             ->post($url, $payload);
+    }
+
+    /**
+     * @param array<string,mixed>|null $rawResponse
+     * @return array<string,mixed>
+     */
+    private function normalizedError(string $message, ?array $rawResponse = null): array
+    {
+        return [
+            'success' => false,
+            'whatsapp_message_id' => null,
+            'raw_response' => $rawResponse,
+            'error' => $message,
+        ];
+    }
+
+    private function extractTokenParam(string $buttonUrlParameter): string
+    {
+        $buttonUrlParameter = trim($buttonUrlParameter);
+        if ($buttonUrlParameter === '') {
+            return '';
+        }
+
+        if (filter_var($buttonUrlParameter, FILTER_VALIDATE_URL) === false) {
+            return $buttonUrlParameter;
+        }
+
+        $path = (string) parse_url($buttonUrlParameter, PHP_URL_PATH);
+        $segments = array_values(array_filter(explode('/', trim($path, '/')), static function ($v) {
+            return $v !== '';
+        }));
+
+        if ($segments !== []) {
+            return (string) end($segments);
+        }
+
+        return '';
     }
 }

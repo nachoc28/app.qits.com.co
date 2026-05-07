@@ -874,6 +874,12 @@
                     Nota de seguridad: el client secret solo se muestra al generarlo o regenerarlo. Luego no podrá consultarse nuevamente.
                 </div>
 
+                @if($wpSettingsWarning)
+                    <div class="rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+                        {{ $wpSettingsWarning }}
+                    </div>
+                @endif
+
                 @if($wpPlainSecret)
                     <div class="rounded-xl border border-green-200 bg-green-50 p-4">
                         <div class="text-sm font-semibold text-green-800">Client secret generado</div>
@@ -922,6 +928,47 @@
                     </div>
                 </div>
 
+                <div class="rounded-xl border border-gray-200 p-4">
+                    <div class="mb-3 text-sm font-semibold text-gray-900">Destino WhatsApp para WordPress Form Notifications</div>
+
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div class="md:col-span-2 min-w-0">
+                            <x-jet-label value="Número destino (destination_phone)" />
+                            <x-jet-input type="text" class="w-full" wire:model.defer="wpDestinationPhone" placeholder="Ej: +573001234567" />
+                            <x-jet-input-error for="wpDestinationPhone" />
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="inline-flex items-center gap-2">
+                                <input type="checkbox" wire:model="wpDestinationOptIn" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
+                                <span class="text-sm font-medium text-gray-700">Opt-in confirmado (destination_opt_in)</span>
+                            </label>
+                            <x-jet-input-error for="wpDestinationOptIn" />
+                        </div>
+
+                        <div class="min-w-0">
+                            <x-jet-label value="Fecha de opt-in (destination_opt_in_at)" />
+                            <x-jet-input type="datetime-local" class="w-full" wire:model.defer="wpDestinationOptInAt" />
+                            <x-jet-input-error for="wpDestinationOptInAt" />
+                        </div>
+
+                        <div class="min-w-0">
+                            <x-jet-label value="Origen del opt-in (destination_opt_in_source)" />
+                            <x-jet-input type="text" class="w-full" wire:model.defer="wpDestinationOptInSource" placeholder="manual, import, webhook..." />
+                            <x-jet-input-error for="wpDestinationOptInSource" />
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <div class="text-xs text-gray-500">
+                                Servicio formularios-whatsapp-api:
+                                <span class="font-medium {{ $wpFormServiceActive ? 'text-green-700' : 'text-gray-700' }}">
+                                    {{ $wpFormServiceActive ? 'activo' : 'inactivo' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     @if(!$wpIntegrationExists)
                         <x-jet-button class="w-full justify-center" wire:click="createWpIntegration">
@@ -954,6 +1001,10 @@
                             </x-jet-danger-button>
                         @endif
                     @endif
+
+                    <x-jet-button class="w-full justify-center" wire:click="saveWpWhatsAppSettings">
+                        Guardar destino WhatsApp
+                    </x-jet-button>
                 </div>
             </div>
         </x-slot>

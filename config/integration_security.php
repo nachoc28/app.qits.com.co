@@ -146,6 +146,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Límite antiabuso específico: WordPress Form Notifications
+    |--------------------------------------------------------------------------
+    |
+    | Límites adicionales aplicados en el service del módulo antes de despachar
+    | el Job de WhatsApp. Se evalúan por combinación empresa/integración.
+    |
+    */
+    'wordpress_form_notifications_rate_limit' => [
+        'max_per_minute' => (int) env('INTEGRATION_WP_FORM_NOTIFICATIONS_MAX_PER_MINUTE', 10),
+        'max_per_hour'   => (int) env('INTEGRATION_WP_FORM_NOTIFICATIONS_MAX_PER_HOUR', 100),
+        'max_per_day'    => (int) env('INTEGRATION_WP_FORM_NOTIFICATIONS_MAX_PER_DAY', 500),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Hardening / spam signals
     |--------------------------------------------------------------------------
     |
@@ -229,6 +244,14 @@ return [
             'required_service_id'   => 1,
             'required_service_slug' => 'sitio-web',
             'description'           => 'Ingesta de conversiones UTM para dashboard SEO',
+        ],
+
+        // ── WordPress: notificaciones WhatsApp por formularios ─────────────
+        'wordpress.form_notifications_ingest' => [
+            'scope'                 => 'wordpress.form_notifications_ingest',
+            'required_service_id'   => (int) env('INTEGRATION_FORM_NOTIFICATIONS_SERVICE_ID', 2),
+            'required_service_slug' => 'formularios-whatsapp-api',
+            'description'           => 'Ingesta de notificaciones de formularios WordPress para WhatsApp',
         ],
 
     ],

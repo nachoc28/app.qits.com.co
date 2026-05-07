@@ -15,6 +15,9 @@ class EmpresaWhatsAppSetting extends Model
         'whatsapp_access_token',
         'whatsapp_verify_token',
         'destination_phone',
+        'destination_opt_in',
+        'destination_opt_in_at',
+        'destination_opt_in_source',
         'send_text_enabled',
         'send_pdf_enabled',
         'save_attachments',
@@ -26,6 +29,8 @@ class EmpresaWhatsAppSetting extends Model
      * Si el APP_KEY cambia, los tokens existentes quedarán ilegibles.
      */
     protected $casts = [
+        'destination_opt_in' => 'boolean',
+        'destination_opt_in_at' => 'datetime',
         'send_text_enabled' => 'boolean',
         'send_pdf_enabled'  => 'boolean',
         'save_attachments'  => 'boolean',

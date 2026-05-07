@@ -8,6 +8,7 @@ use App\Models\Departamento;
 use App\Models\Ciudad;
 use App\Models\Empresa;
 use App\Models\EmpresaIntegration;
+use App\Models\EmpresaWhatsAppSetting;
 use App\Models\Servicio;
 use App\Models\TipoUsuario;
 use App\Models\User;
@@ -103,6 +104,14 @@ class EmpresasManager extends Component
     public $wpIntegrationScope = null;
     public $wpIntegrationExists = false;
     public $wpPlainSecret = null;
+
+    // Configuración WhatsApp por empresa (reutilizada para WordPress Form Notifications)
+    public $wpDestinationPhone = '';
+    public $wpDestinationOptIn = false;
+    public $wpDestinationOptInAt = null;
+    public $wpDestinationOptInSource = '';
+    public $wpFormServiceActive = false;
+    public $wpSettingsWarning = null;
 
     protected function baseRules(): array
     {
@@ -676,6 +685,12 @@ public function closeWpIntegration(): void
     $this->wpIntegrationScope = null;
     $this->wpIntegrationExists = false;
     $this->wpPlainSecret = null;
+    $this->wpDestinationPhone = '';
+    $this->wpDestinationOptIn = false;
+    $this->wpDestinationOptInAt = null;
+    $this->wpDestinationOptInSource = '';
+    $this->wpFormServiceActive = false;
+    $this->wpSettingsWarning = null;
 }
 
 public function refreshWpIntegrationState(bool $preserveSecret = false): void
@@ -696,6 +711,8 @@ public function refreshWpIntegrationState(bool $preserveSecret = false): void
         $this->wpIntegrationExists = false;
         $this->wpIntegrationScope = IntegrationModule::SEO_UTM_CONVERSIONS_INGEST;
 
+        $this->loadWpWhatsAppSettings();
+
         return;
     }
 
@@ -708,6 +725,121 @@ public function refreshWpIntegrationState(bool $preserveSecret = false): void
     $this->wpIntegrationLastUsedAt = optional($integration->last_used_at)->format('Y-m-d H:i:s');
     $this->wpIntegrationExists = true;
     $this->wpIntegrationScope = IntegrationModule::SEO_UTM_CONVERSIONS_INGEST;
+
+    $this->loadWpWhatsAppSettings();
+}
+
+public function saveWpWhatsAppSettings(): void
+{
+    if (! $this->wpEmpresaId) return;
+
+    $rules = [
+        'wpDestinationPhone' => ['nullable', 'string', 'max:50'],
+        'wpDestinationOptIn' => ['boolean'],
+        'wpDestinationOptInAt' => ['nullable', 'date'],
+        'wpDestinationOptInSource' => ['nullable', 'string', 'max:80'],
+    ];
+
+    $this->validate($rules);
+
+    $phoneRaw = trim((string) $this->wpDestinationPhone);
+    $phone = $this->normalizeDestinationPhone($phoneRaw);
+    $optIn = (bool) $this->wpDestinationOptIn;
+    $optInAt = $this->wpDestinationOptInAt ? (string) $this->wpDestinationOptInAt : null;
+    $optInSource = trim((string) $this->wpDestinationOptInSource);
+
+    if ($phoneRaw !== '' && ! preg_match('/^[\d\s\-\(\)\+\.]+$/', $phoneRaw)) {
+        $this->addError('wpDestinationPhone', 'destination_phone solo permite dígitos y separadores básicos (espacio, -, (), +, .).');
+        return;
+    }
+
+    if ($optIn && $phone === '') {
+        $this->addError('wpDestinationPhone', 'destination_phone es requerido cuando destination_opt_in está activo.');
+        return;
+    }
+
+    if ($phone !== '' && substr($phone, 0, 1) === '0') {
+        $this->addError('wpDestinationPhone', 'destination_phone no puede iniciar con 0. Usa formato internacional sin ceros iniciales.');
+        return;
+    }
+
+    if ($phone !== '' && (strlen($phone) < 10 || strlen($phone) > 15)) {
+        $this->addError('wpDestinationPhone', 'destination_phone debe contener entre 10 y 15 dígitos.');
+        return;
+    }
+
+    if ($optIn && $optInAt === null) {
+        $this->addError('wpDestinationOptInAt', 'destination_opt_in_at es requerido cuando destination_opt_in está activo.');
+        return;
+    }
+
+    if ($optIn && $optInSource === '') {
+        $this->addError('wpDestinationOptInSource', 'destination_opt_in_source es requerido cuando destination_opt_in está activo.');
+        return;
+    }
+
+    $setting = EmpresaWhatsAppSetting::query()
+        ->where('empresa_id', $this->wpEmpresaId)
+        ->first();
+
+    if (! $setting) {
+        $setting = new EmpresaWhatsAppSetting();
+        $setting->empresa_id = (int) $this->wpEmpresaId;
+        $setting->whatsapp_business_phone = 'PENDING';
+        $setting->whatsapp_phone_number_id = 'PENDING';
+        $setting->whatsapp_access_token = 'PENDING';
+        $setting->whatsapp_verify_token = 'PENDING';
+        $setting->send_text_enabled = true;
+        $setting->send_pdf_enabled = true;
+        $setting->save_attachments = false;
+        $setting->is_active = true;
+    }
+
+    $setting->destination_phone = $phone;
+    $setting->destination_opt_in = $optIn;
+    $setting->destination_opt_in_at = $optIn ? $optInAt : null;
+    $setting->destination_opt_in_source = $optIn ? $optInSource : null;
+    $setting->save();
+
+    $this->loadWpWhatsAppSettings();
+    session()->flash('message', 'Configuración de destino WhatsApp actualizada.');
+}
+
+private function normalizeDestinationPhone(string $phone): string
+{
+    // Conserva solo dígitos para almacenar un valor compatible con WhatsApp Cloud API.
+    return preg_replace('/\D+/', '', $phone);
+}
+
+private function loadWpWhatsAppSettings(): void
+{
+    if (! $this->wpEmpresaId) {
+        return;
+    }
+
+    $setting = EmpresaWhatsAppSetting::query()
+        ->where('empresa_id', $this->wpEmpresaId)
+        ->first();
+
+    $this->wpDestinationPhone = $setting ? (string) $setting->destination_phone : '';
+    $this->wpDestinationOptIn = $setting ? (bool) $setting->destination_opt_in : false;
+    $this->wpDestinationOptInAt = $setting && $setting->destination_opt_in_at
+        ? $setting->destination_opt_in_at->format('Y-m-d\TH:i')
+        : null;
+    $this->wpDestinationOptInSource = $setting ? (string) $setting->destination_opt_in_source : '';
+
+    $empresa = Empresa::query()->find($this->wpEmpresaId);
+    $this->wpFormServiceActive = $empresa
+        ? $empresa->hasActiveServiceBySlug('formularios-whatsapp-api')
+        : false;
+
+    $hasPhone = trim((string) $this->wpDestinationPhone) !== '';
+    $hasOptIn = $this->wpDestinationOptIn && ! empty($this->wpDestinationOptInAt);
+
+    $this->wpSettingsWarning = null;
+    if ($this->wpFormServiceActive && (! $hasPhone || ! $hasOptIn)) {
+        $this->wpSettingsWarning = 'El servicio formularios-whatsapp-api está activo, pero falta destination_phone u opt-in confirmado.';
+    }
 }
 
 public function createWpIntegration(): void

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Integrations\GoogleOAuthController;
+use App\Http\Controllers\PublicFormNotificationController;
 use App\Models\Empresa;
 use App\Models\User;
 use App\Services\Seo\SeoPropertyConfigurationService;
@@ -22,6 +23,9 @@ Route::get('/', function () {
         ? redirect()->route('dashboard')
         : redirect()->route('login');
 });
+
+Route::get('/s/{token}', [PublicFormNotificationController::class, 'show'])
+    ->where('token', '[A-Za-z0-9\-_=]+');
 
 
 Route::middleware([
