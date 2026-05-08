@@ -49,19 +49,29 @@ class PublicFormNotificationController extends Controller
             ? $notification->normalized_payload_json
             : [];
 
-        $safeData = [
+        $mainData = [
             'nombre' => (string) ($normalized['nombre'] ?? ''),
+            'apellido' => (string) ($normalized['apellido'] ?? ''),
+            'nombre_completo' => (string) ($normalized['nombre_completo'] ?? ''),
             'servicio' => (string) ($normalized['servicio'] ?? ''),
             'telefono' => (string) ($normalized['telefono'] ?? ''),
             'email' => (string) ($normalized['email'] ?? ''),
             'form_name' => (string) ($normalized['form_name'] ?? ''),
             'page_url' => (string) ($normalized['page_url'] ?? ''),
             'submitted_at' => (string) ($normalized['submitted_at'] ?? ''),
-            'mensaje' => (string) ($normalized['mensaje'] ?? ($normalized['comentario'] ?? '')),
+            'mensaje' => (string) ($normalized['mensaje'] ?? ''),
+            'consentimiento' => array_key_exists('consentimiento', $normalized)
+                ? $normalized['consentimiento']
+                : null,
         ];
 
+        $additional = is_array($normalized['campos_adicionales'] ?? null)
+            ? $normalized['campos_adicionales']
+            : [];
+
         return response()->view('public.form-notification-show', [
-            'safeData' => $safeData,
+            'mainData' => $mainData,
+            'additionalFields' => $additional,
         ]);
     }
 }

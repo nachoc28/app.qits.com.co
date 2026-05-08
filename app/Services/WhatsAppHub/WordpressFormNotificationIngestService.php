@@ -9,10 +9,11 @@ use App\Models\FormNotificationPublicLink;
 use App\Models\EmpresaIntegration;
 use App\Models\IntegrationSecurityLog;
 use App\Models\WhatsappFormNotification;
+use App\Support\IntegrationSecurity\ModuleRegistry;
 use Illuminate\Database\QueryException;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 
@@ -58,9 +59,9 @@ class WordpressFormNotificationIngestService
             $normalized = $this->buildNormalizedPayload($validated, $fields);
 
             $variables = [
-                'nombre' => (string) ($normalized['nombre'] ?? ''),
-                'servicio' => (string) ($normalized['servicio'] ?? ''),
-                'telefono' => (string) ($normalized['telefono'] ?? ''),
+                'nombre' => (string) ($normalized['nombre'] !== '' ? $normalized['nombre'] : 'Sin nombre'),
+                'servicio' => (string) ($normalized['servicio'] !== '' ? $normalized['servicio'] : 'No especificado'),
+                'telefono' => (string) ($normalized['telefono'] !== '' ? $normalized['telefono'] : 'Sin teléfono'),
             ];
 
             $messagePayload = [
@@ -220,32 +221,389 @@ class WordpressFormNotificationIngestService
      */
     private function buildNormalizedPayload(array $validated, array $fields): array
     {
+        $entries = $this->normalizeIncomingFields($fields);
+
+        $aliases = $this->mainFieldAliases();
+        $used = [];
+
+        $nombre = $this->extractByAliases($entries, $aliases['nombre'], $used, 180);
+        $apellido = $this->extractByAliases($entries, $aliases['apellido'], $used, 180);
+        $nombreCompleto = $this->extractByAliases($entries, $aliases['nombre_completo'], $used, 250);
+
+        $telefonoRaw = $this->extractByAliases($entries, $aliases['telefono'], $used, 80);
+        $email = $this->extractByAliases($entries, $aliases['email'], $used, 180);
+        $servicio = $this->extractByAliases($entries, $aliases['servicio'], $used, 180);
+        $mensaje = $this->extractByAliases($entries, $aliases['mensaje'], $used, 1000);
+        $consentimientoRaw = $this->extractByAliases($entries, $aliases['consentimiento'], $used, 120);
+
+        if ($nombreCompleto === '' && ($nombre !== '' || $apellido !== '')) {
+            $nombreCompleto = $this->sanitizeText(trim($nombre . ' ' . $apellido), 250);
+        }
+
+        if ($nombre === '' && $nombreCompleto !== '') {
+            $nombre = $nombreCompleto;
+        }
+
+        $telefono = $this->sanitizePhone($telefonoRaw);
+        $consentimiento = $this->parseConsentValue($consentimientoRaw);
+
+        $camposAdicionales = $this->buildAdditionalFields($entries, $used);
+        $sanitizedFields = $this->buildSanitizedFieldsMap($entries);
+
         return [
             'submitted_at' => (string) $validated['submitted_at'],
             'form_id' => $this->sanitizeText((string) ($validated['form_id'] ?? ''), 120),
             'form_name' => $this->sanitizeText((string) ($validated['form_name'] ?? ''), 150),
             'page_url' => $this->sanitizeText((string) ($validated['page_url'] ?? ''), 500),
-            'nombre' => $this->sanitizeText($this->pickField($fields, ['nombre', 'name', 'full_name']), 180),
-            'servicio' => $this->sanitizeText($this->pickField($fields, ['servicio', 'service']), 180),
-            'telefono' => $this->sanitizePhone($this->pickField($fields, ['telefono', 'phone', 'mobile'])),
-            'fields' => $this->sanitizeArrayValues($fields),
+            'nombre' => $nombre,
+            'apellido' => $apellido,
+            'nombre_completo' => $nombreCompleto,
+            'telefono' => $telefono,
+            'email' => $email,
+            'servicio' => $servicio,
+            'mensaje' => $mensaje,
+            'consentimiento' => $consentimiento,
+            'campos_adicionales' => $camposAdicionales,
+            'fields' => $sanitizedFields,
         ];
     }
 
     /**
-     * @param array<string, mixed> $fields
-     * @param string[] $candidateKeys
+     * @param array<int, array<string,mixed>> $entries
+     * @param string[] $aliases
+     * @param array<int,bool> $used
      */
-    private function pickField(array $fields, array $candidateKeys): string
+    private function extractByAliases(array $entries, array $aliases, array &$used, int $max): string
     {
-        foreach ($candidateKeys as $key) {
-            $value = Arr::get($fields, $key);
-            if (is_string($value) && trim($value) !== '') {
-                return $value;
+        foreach ($entries as $index => $entry) {
+            $identifiers = isset($entry['identifiers']) && is_array($entry['identifiers'])
+                ? $entry['identifiers']
+                : [];
+
+            foreach ($identifiers as $identifier) {
+                if (! in_array((string) $identifier, $aliases, true)) {
+                    continue;
+                }
+
+                $value = isset($entry['value']) ? $this->toFlatString($entry['value']) : '';
+                $value = $this->sanitizeText($value, $max);
+
+                if ($value !== '') {
+                    $used[$index] = true;
+                    return $value;
+                }
             }
         }
 
         return '';
+    }
+
+    /**
+     * @param array<string,mixed> $fields
+     * @return array<int, array<string,mixed>>
+     */
+    private function normalizeIncomingFields(array $fields): array
+    {
+        $entries = [];
+
+        if ($this->isFieldList($fields)) {
+            foreach ($fields as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+
+                $rawId = isset($row['id']) ? (string) $row['id'] : '';
+                $rawName = isset($row['name']) ? (string) $row['name'] : '';
+                $value = $row['value'] ?? '';
+
+                $identifiers = $this->buildIdentifiers([$rawId, $rawName]);
+
+                if ($identifiers === []) {
+                    continue;
+                }
+
+                $entries[] = [
+                    'label' => $rawName !== '' ? $rawName : $rawId,
+                    'identifiers' => $identifiers,
+                    'value' => $value,
+                ];
+            }
+
+            return $entries;
+        }
+
+        foreach ($fields as $key => $value) {
+            $rawKey = is_string($key) || is_int($key) ? (string) $key : '';
+            if ($rawKey === '') {
+                continue;
+            }
+
+            $identifiers = $this->buildIdentifiers([$rawKey]);
+            if ($identifiers === []) {
+                continue;
+            }
+
+            $entries[] = [
+                'label' => $rawKey,
+                'identifiers' => $identifiers,
+                'value' => $value,
+            ];
+        }
+
+        return $entries;
+    }
+
+    /**
+     * @param array<int, mixed> $values
+     * @return string[]
+     */
+    private function buildIdentifiers(array $values): array
+    {
+        $out = [];
+        foreach ($values as $value) {
+            $normalized = $this->normalizeFieldKey((string) $value);
+            if ($normalized === '') {
+                continue;
+            }
+            $out[] = $normalized;
+        }
+
+        return array_values(array_unique($out));
+    }
+
+    private function normalizeFieldKey(string $key): string
+    {
+        $key = trim($key);
+        if ($key === '') {
+            return '';
+        }
+
+        $ascii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $key);
+        if (is_string($ascii) && $ascii !== '') {
+            $key = $ascii;
+        }
+
+        $key = strtolower($key);
+        $key = str_replace(':', ' ', $key);
+        $key = preg_replace('/[\._\-\/\\\|]+/', ' ', $key);
+        $key = preg_replace('/\s+/', ' ', (string) $key);
+
+        return trim((string) $key);
+    }
+
+    /**
+     * @return array<string, string[]>
+     */
+    private function mainFieldAliases(): array
+    {
+        return [
+            'nombre' => [
+                'nombre', 'nombres', 'name', 'first name', 'firstname',
+                'full name', 'fullname', 'nombre completo',
+            ],
+            'apellido' => [
+                'apellido', 'apellidos', 'last name', 'lastname', 'surname',
+            ],
+            'nombre_completo' => [
+                'full name', 'fullname', 'nombre completo',
+            ],
+            'telefono' => [
+                'telefono', 'phone', 'phone number', 'mobile', 'movil',
+                'celular', 'whatsapp', 'wa', 'phone number', 'phone_number',
+            ],
+            'email' => [
+                'email', 'e mail', 'mail', 'correo', 'correo electronico', 'email address',
+            ],
+            'servicio' => [
+                'servicio', 'servicios', 'service', 'services', 'interes',
+                'interest', 'producto', 'producto de interes',
+            ],
+            'mensaje' => [
+                'mensaje', 'message', 'comentario', 'comentarios', 'comments',
+                'detalle', 'detalle solicitud', 'solicitud', 'descripcion',
+            ],
+            'consentimiento' => [
+                'aceptacion', 'consentimiento', 'politica', 'privacy', 'terms',
+                'terminos', 'autorizacion',
+            ],
+        ];
+    }
+
+    /**
+     * @param array<int, array<string,mixed>> $entries
+     * @param array<int,bool> $used
+     * @return array<string, string>
+     */
+    private function buildAdditionalFields(array $entries, array $used): array
+    {
+        $additional = [];
+
+        foreach ($entries as $index => $entry) {
+            if (isset($used[$index]) && $used[$index] === true) {
+                continue;
+            }
+
+            $identifiers = isset($entry['identifiers']) && is_array($entry['identifiers'])
+                ? $entry['identifiers']
+                : [];
+
+            if ($this->isSensitiveField($identifiers)) {
+                continue;
+            }
+
+            $label = $this->sanitizeText((string) ($entry['label'] ?? ''), 120);
+            if ($label === '') {
+                $label = isset($identifiers[0]) ? $this->sanitizeText((string) $identifiers[0], 120) : '';
+            }
+
+            if ($label === '') {
+                continue;
+            }
+
+            $value = $this->sanitizeText($this->toFlatString($entry['value'] ?? ''), 1000);
+            if ($value === '') {
+                continue;
+            }
+
+            $additional[$label] = $value;
+        }
+
+        return $additional;
+    }
+
+    /**
+     * @param array<int, array<string,mixed>> $entries
+     * @return array<string, string>
+     */
+    private function buildSanitizedFieldsMap(array $entries): array
+    {
+        $map = [];
+
+        foreach ($entries as $entry) {
+            $label = $this->sanitizeText((string) ($entry['label'] ?? ''), 120);
+            if ($label === '') {
+                $identifiers = isset($entry['identifiers']) && is_array($entry['identifiers'])
+                    ? $entry['identifiers']
+                    : [];
+                $label = isset($identifiers[0]) ? $this->sanitizeText((string) $identifiers[0], 120) : '';
+            }
+
+            if ($label === '') {
+                continue;
+            }
+
+            $value = $this->sanitizeText($this->toFlatString($entry['value'] ?? ''), 1000);
+            $map[$label] = $value;
+        }
+
+        return $map;
+    }
+
+    /**
+     * @param array<int, string> $identifiers
+     */
+    private function isSensitiveField(array $identifiers): bool
+    {
+        $blocked = [
+            'password', 'contrasena', 'token', 'cookie', 'header', 'authorization',
+            'bearer', 'adjunto', 'attachment', 'archivo', 'file', 'mime',
+            'content type', 'set cookie',
+        ];
+
+        foreach ($identifiers as $identifier) {
+            $id = (string) $identifier;
+            foreach ($blocked as $needle) {
+                if (strpos($id, $needle) !== false) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function parseConsentValue(string $raw): ?bool
+    {
+        $value = $this->normalizeFieldKey($raw);
+
+        if ($value === '') {
+            return null;
+        }
+
+        $truthy = ['1', 'true', 'si', 'yes', 'accepted', 'accept', 'ok', 'on'];
+        $falsy = ['0', 'false', 'no', 'off', 'rejected', 'deny'];
+
+        if (in_array($value, $truthy, true)) {
+            return true;
+        }
+
+        if (in_array($value, $falsy, true)) {
+            return false;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param mixed $value
+     */
+    private function toFlatString($value): string
+    {
+        if (is_null($value)) {
+            return '';
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+
+        if (is_scalar($value)) {
+            return (string) $value;
+        }
+
+        if (is_array($value)) {
+            $parts = [];
+            foreach ($value as $item) {
+                $flat = $this->toFlatString($item);
+                if ($flat !== '') {
+                    $parts[] = $flat;
+                }
+            }
+
+            return implode(', ', $parts);
+        }
+
+        return '';
+    }
+
+    /**
+     * @param array<string,mixed> $fields
+     */
+    private function isFieldList(array $fields): bool
+    {
+        if ($fields === []) {
+            return false;
+        }
+
+        $hasStringKey = false;
+        foreach ($fields as $key => $value) {
+            if (is_string($key)) {
+                $hasStringKey = true;
+                break;
+            }
+        }
+
+        if ($hasStringKey) {
+            return false;
+        }
+
+        foreach ($fields as $row) {
+            if (! is_array($row)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function sanitizeText(string $value, int $max): string
@@ -347,12 +705,39 @@ class WordpressFormNotificationIngestService
             return false;
         }
 
-        $moduleCfg = (array) config('integration_security.modules.wordpress.form_notifications_ingest', []);
+        /** @var ModuleRegistry $registry */
+        $registry = app(ModuleRegistry::class);
+        $moduleCfg = (array) $registry->find('wordpress.form_notifications_ingest');
         $serviceId = isset($moduleCfg['required_service_id']) ? (int) $moduleCfg['required_service_id'] : 0;
         $serviceSlug = isset($moduleCfg['required_service_slug']) ? (string) $moduleCfg['required_service_slug'] : '';
 
         $byId = $serviceId > 0 ? $empresa->hasActiveService($serviceId) : false;
         $bySlug = $serviceSlug !== '' ? $empresa->hasActiveServiceBySlug($serviceSlug) : false;
+
+        if (! $byId && ! $bySlug) {
+            $activeServices = $empresa->servicios()
+                ->where('servicios.activo', true)
+                ->orderBy('servicios.id')
+                ->get(['servicios.id', 'servicios.slug', 'servicios.nombre'])
+                ->map(function ($service) {
+                    return [
+                        'id' => (int) $service->id,
+                        'slug' => (string) $service->slug,
+                        'nombre' => (string) $service->nombre,
+                    ];
+                })
+                ->values()
+                ->all();
+
+            Log::warning('[WordpressFormNotificationIngestService] Form notifications service not enabled for empresa.', [
+                'empresa_id' => $empresa->id,
+                'required_service_id' => $serviceId,
+                'required_service_slug' => $serviceSlug,
+                'has_active_service_by_id' => $byId,
+                'has_active_service_by_slug' => $bySlug,
+                'active_services_detected' => $activeServices,
+            ]);
+        }
 
         return $byId || $bySlug;
     }
