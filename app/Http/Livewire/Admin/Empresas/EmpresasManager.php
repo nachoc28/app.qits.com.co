@@ -656,6 +656,12 @@ public function saveServices(): void
     $empresa = Empresa::findOrFail($this->selectedEmpresaId);
     $empresa->servicios()->sync($this->selectedServices);
 
+    $integration = $this->resolveWpIntegration($empresa->id);
+    if ($integration) {
+        app(IntegrationCredentialService::class)
+            ->ensureWordpressIntegrationScopes($integration, $empresa);
+    }
+
     session()->flash('message', 'Servicios actualizados correctamente.');
     $this->closeServicesModal();
 }
@@ -735,7 +741,7 @@ public function refreshWpIntegrationState(bool $preserveSecret = false): void
     }
 
     $service = app(IntegrationCredentialService::class);
-    $integration = $service->ensureScope($integration, IntegrationModule::SEO_UTM_CONVERSIONS_INGEST);
+    $integration = $service->ensureWordpressIntegrationScopes($integration);
 
     $this->wpIntegrationId = $integration->id;
     $this->wpIntegrationPublicKey = $integration->public_key;
