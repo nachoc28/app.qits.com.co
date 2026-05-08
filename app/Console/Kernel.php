@@ -19,6 +19,11 @@ class Kernel extends ConsoleKernel
             ->command('seo:sync --source=all --queue=' . (string) config('seo.sync.queue_name', 'seo-sync'))
             ->cron((string) config('seo.sync.schedule_cron', '30 * * * *'))
             ->withoutOverlapping();
+
+        $schedule
+            ->command('integration-security:prune --chunk=1000')
+            ->dailyAt('03:10')
+            ->withoutOverlapping();
     }
 
     /**

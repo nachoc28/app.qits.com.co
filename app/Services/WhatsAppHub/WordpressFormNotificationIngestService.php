@@ -13,7 +13,6 @@ use App\Support\IntegrationSecurity\ModuleRegistry;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 
@@ -157,11 +156,14 @@ class WordpressFormNotificationIngestService
             $tokenHash = hash('sha256', $plainToken);
             $tokenEncrypted = Crypt::encryptString($plainToken);
 
+            $ttlDays = max(1, (int) config('whatsapp_hub.form_notification_public_link_ttl_days', 7));
+
             FormNotificationPublicLink::query()->create([
                 'whatsapp_form_notification_id' => $notification->id,
                 'token_hash' => $tokenHash,
                 'token_encrypted' => $tokenEncrypted,
                 'is_active' => true,
+                'expires_at' => now()->addDays($ttlDays),
             ]);
 
             $templateConfig = $this->resolveTemplateConfig();
@@ -713,31 +715,6 @@ class WordpressFormNotificationIngestService
 
         $byId = $serviceId > 0 ? $empresa->hasActiveService($serviceId) : false;
         $bySlug = $serviceSlug !== '' ? $empresa->hasActiveServiceBySlug($serviceSlug) : false;
-
-        if (! $byId && ! $bySlug) {
-            $activeServices = $empresa->servicios()
-                ->where('servicios.activo', true)
-                ->orderBy('servicios.id')
-                ->get(['servicios.id', 'servicios.slug', 'servicios.nombre'])
-                ->map(function ($service) {
-                    return [
-                        'id' => (int) $service->id,
-                        'slug' => (string) $service->slug,
-                        'nombre' => (string) $service->nombre,
-                    ];
-                })
-                ->values()
-                ->all();
-
-            Log::warning('[WordpressFormNotificationIngestService] Form notifications service not enabled for empresa.', [
-                'empresa_id' => $empresa->id,
-                'required_service_id' => $serviceId,
-                'required_service_slug' => $serviceSlug,
-                'has_active_service_by_id' => $byId,
-                'has_active_service_by_slug' => $bySlug,
-                'active_services_detected' => $activeServices,
-            ]);
-        }
 
         return $byId || $bySlug;
     }

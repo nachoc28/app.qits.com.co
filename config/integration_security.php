@@ -64,6 +64,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Retención para limpieza programada
+    |--------------------------------------------------------------------------
+    |
+    | nonces_retention_hours: conserva nonces recientes para replay protection.
+    | security_logs_retention_days: conserva historial reciente de auditoría.
+    |
+    */
+
+    'nonces_retention_hours' => (int) env('INTEGRATION_NONCES_RETENTION_HOURS', 48),
+    'security_logs_retention_days' => (int) env('INTEGRATION_SECURITY_LOGS_RETENTION_DAYS', 30),
+
+    /*
+    |--------------------------------------------------------------------------
     | Algoritmo de firma
     |--------------------------------------------------------------------------
     |

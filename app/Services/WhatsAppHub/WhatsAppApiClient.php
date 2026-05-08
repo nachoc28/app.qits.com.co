@@ -89,7 +89,7 @@ class WhatsAppApiClient
             return $this->normalizedError('Global WhatsApp template credentials are incomplete in WHATSAPP_TOKEN/WHATSAPP_PHONE_ID.');
         }
 
-        $tokenParam = $this->extractTokenParam($buttonUrlParameter);
+        $tokenParam = trim($buttonUrlParameter);
         if ($tokenParam === '') {
             return $this->normalizedError('Template button token parameter is required.');
         }
@@ -216,28 +216,5 @@ class WhatsAppApiClient
             'raw_response' => $rawResponse,
             'error' => $message,
         ];
-    }
-
-    private function extractTokenParam(string $buttonUrlParameter): string
-    {
-        $buttonUrlParameter = trim($buttonUrlParameter);
-        if ($buttonUrlParameter === '') {
-            return '';
-        }
-
-        if (filter_var($buttonUrlParameter, FILTER_VALIDATE_URL) === false) {
-            return $buttonUrlParameter;
-        }
-
-        $path = (string) parse_url($buttonUrlParameter, PHP_URL_PATH);
-        $segments = array_values(array_filter(explode('/', trim($path, '/')), static function ($v) {
-            return $v !== '';
-        }));
-
-        if ($segments !== []) {
-            return (string) end($segments);
-        }
-
-        return '';
     }
 }

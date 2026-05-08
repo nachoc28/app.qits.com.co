@@ -25,6 +25,11 @@ Route::get('/', function () {
 });
 
 Route::get('/s/{token}', [PublicFormNotificationController::class, 'show'])
+    ->name('public.form-notification.show')
+    ->where('token', '[A-Za-z0-9\-_=]+');
+
+Route::get('/s/{token}/pdf', [PublicFormNotificationController::class, 'downloadPdf'])
+    ->name('public.form-notification.pdf')
     ->where('token', '[A-Za-z0-9\-_=]+');
 
 

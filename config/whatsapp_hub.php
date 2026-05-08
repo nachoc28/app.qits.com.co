@@ -75,4 +75,8 @@ return [
         'status' => env('WHATSAPP_HUB_FORM_TEMPLATE_STATUS', 'pending'),
     ],
 
+    // Días de validez del enlace público enviado por WhatsApp.
+    // El controlador rechaza con 404 cualquier link expirado o sin fecha.
+    'form_notification_public_link_ttl_days' => (int) env('WHATSAPP_HUB_PUBLIC_LINK_TTL_DAYS', 7),
+
 ];
