@@ -57,9 +57,15 @@ class WordpressFormNotificationIngestService
 
             $normalized = $this->buildNormalizedPayload($validated, $fields);
 
+            $servicioVariable = (string) ($normalized['servicio'] !== ''
+                ? $normalized['servicio']
+                : ($sourceSystem === 'wordpress_whatsapp_popup'
+                    ? 'Solicitud de contacto vía WhatsApp'
+                    : 'No especificado'));
+
             $variables = [
                 'nombre' => (string) ($normalized['nombre'] !== '' ? $normalized['nombre'] : 'Sin nombre'),
-                'servicio' => (string) ($normalized['servicio'] !== '' ? $normalized['servicio'] : 'No especificado'),
+                'servicio' => $servicioVariable,
                 'telefono' => (string) ($normalized['telefono'] !== '' ? $normalized['telefono'] : 'Sin teléfono'),
             ];
 
