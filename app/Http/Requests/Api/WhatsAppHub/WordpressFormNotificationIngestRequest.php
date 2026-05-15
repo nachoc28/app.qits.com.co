@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api\WhatsAppHub;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class WordpressFormNotificationIngestRequest extends FormRequest
@@ -37,7 +38,7 @@ class WordpressFormNotificationIngestRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'source_system' => ['required', 'string', 'in:wordpress_wpforms,wordpress_elementor'],
+            'source_system' => ['required', 'string', 'in:wordpress_wpforms,wordpress_elementor,wordpress_whatsapp_popup'],
             'source_record_id' => ['required', 'string', 'max:191'],
             'submitted_at' => ['required', 'date'],
             'form_id' => ['nullable', 'string', 'max:120'],
@@ -68,7 +69,7 @@ class WordpressFormNotificationIngestRequest extends FormRequest
     {
         return [
             'source_system.required' => 'source_system es requerido.',
-            'source_system.in' => 'source_system debe ser wordpress_wpforms o wordpress_elementor.',
+            'source_system.in' => 'source_system debe ser wordpress_wpforms, wordpress_elementor o wordpress_whatsapp_popup.',
             'source_record_id.required' => 'source_record_id es requerido.',
             'source_record_id.string' => 'source_record_id debe ser texto.',
             'source_record_id.max' => 'source_record_id no debe superar 191 caracteres.',
@@ -88,11 +89,66 @@ class WordpressFormNotificationIngestRequest extends FormRequest
     {
         $errors = $validator->errors()->toArray();
         $failedFields = array_keys($errors);
+        $failedRules = $validator->failed();
 
         $requestIdHeader = $this->header('X-Request-Id');
         $requestId = is_string($requestIdHeader) && trim($requestIdHeader) !== ''
             ? trim($requestIdHeader)
             : (string) Str::uuid();
+
+        $all = $this->all();
+        $topKeys = array_keys($all);
+
+        $fields = $this->input('fields_json');
+        $fieldsIsArray = is_array($fields);
+        $fieldsCount = $fieldsIsArray ? count($fields) : null;
+        $fieldsStructure = [];
+
+        if ($fieldsIsArray) {
+            $maxItems = 25;
+            $index = 0;
+
+            foreach ($fields as $itemValue) {
+                if ($index >= $maxItems) {
+                    break;
+                }
+
+                if (is_array($itemValue)) {
+                    $itemKeys = array_keys($itemValue);
+                    $hasId = array_key_exists('id', $itemValue);
+                    $hasName = array_key_exists('name', $itemValue);
+                    $hasValue = array_key_exists('value', $itemValue);
+                } else {
+                    $itemKeys = [];
+                    $hasId = false;
+                    $hasName = false;
+                    $hasValue = true;
+                }
+
+                $fieldsStructure[] = [
+                    'index' => $index,
+                    'keys_present' => $itemKeys,
+                    'has_id' => $hasId,
+                    'has_name' => $hasName,
+                    'has_value' => $hasValue,
+                ];
+
+                $index++;
+            }
+        }
+
+        Log::warning('wordpress.form_notifications.validation_failed', [
+            'event' => 'wordpress.form_notifications.validation_failed',
+            'request_id' => $requestId,
+            'errors' => $errors,
+            'failed_rules' => $failedRules,
+            'source_system_received' => $this->input('source_system'),
+            'top_level_keys' => $topKeys,
+            'fields_json_is_array' => $fieldsIsArray,
+            'fields_json_count' => $fieldsCount,
+            'fields_json_structure' => $fieldsStructure,
+            'raw_payload_json_is_array' => is_array($this->input('raw_payload_json')),
+        ]);
 
         throw new HttpResponseException(
             response()->json([
