@@ -5,6 +5,7 @@ namespace App\Http\Livewire\Admin\ContentManagement;
 use App\Models\ContentArticle;
 use App\Models\User;
 use App\Services\ContentManagement\ContentAccessService;
+use App\Support\ContentManagementLabels;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
@@ -103,7 +104,7 @@ class ContentArticleIndex extends Component
     {
         return view('livewire.admin.content-management.content-article-index', [
             'articles' => $this->articles($accessService),
-            'mainStatusOptions' => ContentArticle::MAIN_STATUSES,
+            'mainStatusOptions' => ContentManagementLabels::mainStatusOptions(),
             'periodOptions' => [
                 self::PERIOD_ALL => 'Todos',
                 self::PERIOD_CURRENT_MONTH => 'Mes actual',

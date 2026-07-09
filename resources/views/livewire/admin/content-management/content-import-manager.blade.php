@@ -103,11 +103,11 @@
                 type="button"
                 wire:click="validateImport"
                 wire:loading.attr="disabled"
-                wire:target="validateImport,xlsxFile"
+                wire:target="validateImport"
                 class="inline-flex items-center justify-center rounded-md bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
                 <span wire:loading.remove wire:target="validateImport">Validar archivo</span>
-                <span wire:loading wire:target="validateImport" class="inline-flex items-center">
+                <span wire:loading.flex wire:target="validateImport" style="display: none;" class="items-center">
                     <span class="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-indigo-200 border-r-white"></span>
                     Validando...
                 </span>
@@ -122,7 +122,7 @@
                 class="inline-flex items-center justify-center rounded-md bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
                 <span wire:loading.remove wire:target="confirmImport">Confirmar importación</span>
-                <span wire:loading wire:target="confirmImport" class="inline-flex items-center">
+                <span wire:loading.flex wire:target="confirmImport" style="display: none;" class="items-center">
                     <span class="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-emerald-200 border-r-white"></span>
                     Importando...
                 </span>

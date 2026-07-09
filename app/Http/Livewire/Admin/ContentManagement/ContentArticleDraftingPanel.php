@@ -72,7 +72,7 @@ class ContentArticleDraftingPanel extends Component
             ]);
         }
 
-        session()->flash('content_drafting_success', 'Paso drafting marcado como listo.');
+        session()->flash('content_drafting_success', 'Paso Redacción del artículo marcado como listo.');
     }
 
     public function viewGeneration(int $generationId, ContentAccessService $accessService): void

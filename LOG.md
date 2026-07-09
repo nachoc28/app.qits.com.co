@@ -1,5 +1,42 @@
 # LOG
 
+## 2026-07-09 (security incident - exposed testing APP_KEY)
+
+### Context
+- GitGuardian reported a Laravel `APP_KEY` exposed in `.env.testing` on GitHub.
+- Scope limited to assessing repository exposure, containing current tracking, and preparing safe testing configuration.
+- Production key rotation and Git history rewriting were intentionally not performed in this phase.
+
+### Findings
+- `.env.testing` was tracked in Git before containment.
+- `.env.testing` was introduced by commit:
+  - `2996ca090e559a74e679d96d093c93251caadfb6`
+- Tracked `.env*` files after containment:
+  - `.env.example`
+- `.env.example` contains empty placeholders/references only for inspected sensitive keys.
+- Local untracked files `.env` and `.env.production` exist in the workspace and share the same `APP_KEY` fingerprint as the exposed `.env.testing`; this indicates local reuse, but does not by itself prove the deployed production environment uses that key.
+
+### Containment actions
+- Removed `.env.testing` from Git tracking while keeping the local file intact.
+- Updated `.gitignore` to ignore `.env.*` by default and allow only safe example files.
+- Added `.env.testing.example` with no real secrets.
+- Updated `tests/CreatesApplication.php` so tests prepare a non-secret runtime `APP_KEY` when `APP_ENV=testing`.
+- Updated `ARCHITECTURE.md` with the safe testing environment strategy.
+
+### Validation
+- Confirmed `.env.testing` no longer appears in `git ls-files`.
+- Confirmed tracked `.env*` files are limited to `.env.example`.
+- Executed:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor/bin/phpunit tests/Feature/ContentManagement`
+- Result:
+  - `OK (93 tests, 363 assertions)`
+
+### Not performed
+- No production `APP_KEY` rotation.
+- No `php artisan key:generate` against production.
+- No Git history rewrite.
+- No secret values were documented.
+
 ## 2026-07-08
 
 ### Context
@@ -707,3 +744,225 @@
 - Result:
   - `OK (3 tests, 15 assertions)` for the navigation suite
   - `OK (86 tests, 307 assertions)` for the full Content Management feature suite
+
+## 2026-07-09 (content management objective template availability handling)
+
+### Context
+- Production reported a 500 while generating Prompt 1:
+  - `Active master template version for objective step is not available.`
+- Scope limited to handling missing active master template availability for the `objective` step.
+- No prompt text, routes, module states or fallback prompt behavior were changed.
+
+### Root cause
+- Runtime Prompt 1 generation requires an active `content_master_template_versions` row whose master template has:
+  - `content_master_templates.key = objective`
+  - `content_master_templates.is_active = true`
+  - `content_master_template_versions.is_active = true`
+- The error means that this active pair was not available at runtime.
+
+### Changes made
+- Added exception:
+  - `app/Exceptions/ContentManagement/MissingActiveTemplateVersionException.php`
+- Updated service:
+  - `app/Services/ContentManagement/ContentObjectivePromptService.php`
+  - now throws a domain-specific exception with template availability context
+- Updated Livewire component:
+  - `app/Http/Livewire/Admin/ContentManagement/ContentArticleObjectiveDetail.php`
+  - catches the missing-template exception and prevents a user-facing 500
+  - logs technical details under `[CONTENT][PROMPT][OBJECTIVE_TEMPLATE_MISSING]`
+- Updated Livewire view:
+  - `resources/views/livewire/admin/content-management/content-article-objective-detail.blade.php`
+  - shows the controlled message:
+    - `La plantilla necesaria para este paso no está configurada. Contacta al administrador.`
+- Extended automated tests:
+  - `tests/Feature/ContentManagement/ContentArticleObjectiveDetailTest.php`
+
+### Seeder strategy confirmed
+- `Database\Seeders\ContentMasterTemplatesSeeder` remains the safe registration path for:
+  - `objective`
+  - `drafting`
+  - `video_instagram`
+- The seeder remains idempotent:
+  - it creates missing templates and initial active versions
+  - it reuses version `1` only when the stored body matches the approved TXT exactly
+  - it does not silently overwrite historical content
+  - it fails explicitly if a conflicting historical version exists
+
+### Test execution
+- Executed:
+  - `php vendor/bin/phpunit tests/Feature/ContentManagement/ContentArticleObjectiveDetailTest.php`
+  - `php vendor/bin/phpunit tests/Feature/ContentManagement/ContentMasterTemplatesSeederTest.php`
+  - `php vendor/bin/phpunit tests/Feature/ContentManagement`
+- Result:
+  - `OK (9 tests, 34 assertions)` for the objective flow suite
+  - `OK (3 tests, 24 assertions)` for the master template seeder suite
+  - `OK (87 tests, 310 assertions)` for the full Content Management feature suite
+
+## 2026-07-09 (content article initial pending status)
+
+### Context
+- Newly imported Content Management articles were appearing as `processing` before any operational action had been executed.
+- Scope limited to the initial article main status and safe correction of unstarted records.
+
+### Changes made
+- Added `pending` as a valid `content_articles.main_status` value in the Eloquent model.
+- Added migration:
+  - `database/migrations/2026_07_09_160000_add_pending_main_status_to_content_articles.php`
+- Added data correction service:
+  - `app/Services/ContentManagement/ContentArticleInitialStatusBackfillService.php`
+- Updated XLSX import persistence:
+  - new imported articles now use `main_status = pending`
+  - `operational_stage = pending` remains unchanged
+- Kept Prompt 1 first-generation behavior:
+  - first real `objective` generation moves the article to `main_status = processing`
+- Updated technical documentation:
+  - `ARCHITECTURE.md`
+  - `LOG.md`
+
+### Data correction strategy
+- The migration updates only records matching all conditions:
+  - `main_status = processing`
+  - `operational_stage = pending`
+  - no rows in `content_article_generations`
+- Records with generations or a started operational stage are not modified.
+
+### Automated tests added or updated
+- Imported XLSX articles start as `pending`.
+- First Prompt 1 generation changes `pending` to `processing`.
+- Started `processing` articles with prior objective generation keep `processing`.
+- Backfill only affects unstarted records.
+
+### Test execution
+- Executed with PHP 8.1:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor/bin/phpunit tests/Feature/ContentManagement/ContentXlsxImportServiceTest.php tests/Feature/ContentManagement/ContentArticleObjectiveDetailTest.php tests/Feature/ContentManagement/ContentArticlePendingStatusBackfillTest.php`
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor/bin/phpunit tests/Feature/ContentManagement`
+- Result:
+  - `OK (9 tests, 40 assertions)` for the focused status suites
+  - `OK (89 tests, 319 assertions)` for the full Content Management feature suite
+- Environment note:
+  - the default `php` on PATH is PHP 7.4.19 and fails Composer platform checks
+  - PHP 8.1 run emits local startup warnings for missing `oci8_12c` and `pdo_firebird`, but tests pass
+
+## 2026-07-09 (content management visible Spanish labels)
+
+### Context
+- Content Management screens were exposing internal enum/code values such as `processing`, `pending`, `drafting`, `objective`, `video_instagram`, `ready_by` and `ready_at`.
+- Scope limited to visible UI text and user-facing messages.
+- Internal database values and business logic were not changed.
+
+### Changes made
+- Added centralized label helper:
+  - `app/Support/ContentManagementLabels.php`
+- Updated visible labels in:
+  - main article listing
+  - article operational detail
+  - Prompt 1 panel
+  - Prompt 2 panel
+  - Prompt 3 panel
+  - final file panel
+- Updated user-facing flow messages in:
+  - `ContentArticleObjectiveDetail`
+  - `ContentArticleDraftingPanel`
+  - `ContentArticleVideoInstagramPanel`
+  - drafting/video/final-file services
+- Updated technical documentation:
+  - `ARCHITECTURE.md`
+  - `LOG.md`
+
+### Label strategy
+- `main_status`, `operational_stage`, `step_type` and `step_status` continue to use existing internal enum values.
+- Blade and user-facing messages render Spanish labels through `ContentManagementLabels`.
+
+### Automated tests added or updated
+- Listing shows `Pendiente` and `En proceso`.
+- Listing does not show visible internal codes such as `PROCESSING`, `pending` or `drafting`.
+- Detail view shows Spanish labels for article state and step states.
+
+### Test execution
+- Executed with PHP 8.1:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor/bin/phpunit tests/Feature/ContentManagement`
+- Result:
+  - `OK (91 tests, 337 assertions)` for the full Content Management feature suite
+- Environment note:
+  - PHP 8.1 run still emits local startup warnings for missing `oci8_12c` and `pdo_firebird`, but tests pass
+
+## 2026-07-09 (content management operational detail card layout)
+
+### Context
+- The operational article detail separated each step into multiple visual blocks for generation, results, history and state.
+- Scope limited to reorganizing the visible Blade composition.
+- Business logic, services, transitions, database schema and Livewire component boundaries were not changed.
+- XLSX import indicators, XLSX alert characters, post-save reactivity and action-message placement remain intentionally unchanged for later tasks.
+
+### Changes made
+- Reorganized Step 1 into one visual card:
+  - `Paso 1 · Definir objetivo y público`
+  - status, explanation, Prompt 1 generation, copy action, prompt preview, refined fields, history and ready action are grouped together
+- Reorganized Step 2 into one visual card:
+  - `Paso 2 · Redactar artículo`
+  - status, blocking message, Prompt 2 generation, copy action, prompt preview, history and ready action are grouped together
+- Reorganized Step 3 into one visual card:
+  - `Paso 3 · Crear contenido para video e Instagram`
+  - status, blocking message, Word/PDF instruction, Prompt 3 generation, copy action, prompt preview, history and ready action are grouped together
+- Kept separate cards/components for:
+  - final file
+  - delivery
+  - publication
+- Updated technical documentation:
+  - `ARCHITECTURE.md`
+  - `LOG.md`
+
+### Automated tests updated
+- Detail view asserts Spanish titles for Step 1, Step 2 and Step 3.
+- Detail view asserts blocked steps are visibly identified as `Bloqueado`.
+- Existing Content Management actions and navigation remain covered by the full feature suite.
+
+### Test execution
+- Executed with PHP 8.1:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor/bin/phpunit tests/Feature/ContentManagement`
+- Result:
+  - `OK (91 tests, 345 assertions)` for the full Content Management feature suite
+- Environment note:
+  - PHP 8.1 run still emits local startup warnings for missing `oci8_12c` and `pdo_firebird`, but tests pass
+
+## 2026-07-09 (content import UI loading and UTF-8 text)
+
+### Context
+- Production import UI showed button spinners/loading text at rest and overlapping normal button labels.
+- The XLSX import UI and validation summary also showed mojibake in Spanish text, such as malformed `importación` and `validación`.
+- Scope limited to Content Management XLSX import UI text/loading behavior.
+- Prompt 2 reactivity, refined-field reactivity and message placement inside cards were intentionally not changed.
+
+### Root cause
+- Loading indicators used `wire:loading` on elements that also had Tailwind display classes like `inline-flex`; in Livewire 2 this can leave the loading element visible at rest when CSS display rules conflict.
+- Several PHP and Blade source strings already contained incorrectly encoded text, so the UI rendered the corrupted bytes directly.
+
+### Changes made
+- Updated import Livewire component text:
+  - `app/Http/Livewire/Admin/ContentManagement/ContentImportManager.php`
+- Updated import Blade:
+  - `resources/views/livewire/admin/content-management/content-import-manager.blade.php`
+- Updated import validation summary partial:
+  - `resources/views/livewire/admin/content-management/partials/import-validation-summary.blade.php`
+- Updated import tests:
+  - `tests/Feature/ContentManagement/ContentImportManagerMountTest.php`
+- Updated technical documentation:
+  - `ARCHITECTURE.md`
+  - `LOG.md`
+
+### Loading strategy
+- Validation button:
+  - normal text uses `wire:loading.remove wire:target="validateImport"`
+  - loading text/spinner uses `wire:loading.flex wire:target="validateImport" style="display: none;"`
+- Confirmation button:
+  - normal text uses `wire:loading.remove wire:target="confirmImport"`
+  - loading text/spinner uses `wire:loading.flex wire:target="confirmImport" style="display: none;"`
+- Removed the combined `validateImport,xlsxFile` target from the validation button so button loading follows only its own action.
+
+### Test execution
+- Executed with PHP 8.1:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor/bin/phpunit tests/Feature/ContentManagement/ContentImportManagerMountTest.php tests/Feature/ContentManagement/ContentXlsxImportServiceTest.php`
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor/bin/phpunit tests/Feature/ContentManagement`
+- Result:
+  - `OK (8 tests, 35 assertions)` for the import-focused suites
+  - `OK (93 tests, 363 assertions)` for the full Content Management feature suite

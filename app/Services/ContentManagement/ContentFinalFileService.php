@@ -6,6 +6,7 @@ use App\Models\ContentArticle;
 use App\Models\ContentArticleFile;
 use App\Models\ContentArticleStep;
 use App\Models\User;
+use App\Support\ContentManagementLabels;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -28,7 +29,7 @@ class ContentFinalFileService
         if ($videoStep->step_status !== ContentArticleStep::STATUS_READY) {
             return [
                 'allowed' => false,
-                'message' => 'El paso video_instagram debe estar listo antes de cargar el archivo final.',
+                'message' => 'El paso ' . ContentManagementLabels::stepType(ContentArticleStep::TYPE_VIDEO_INSTAGRAM) . ' debe estar listo antes de cargar el archivo final.',
             ];
         }
 

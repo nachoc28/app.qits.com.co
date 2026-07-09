@@ -72,7 +72,7 @@ class ContentArticleVideoInstagramPanel extends Component
             ]);
         }
 
-        session()->flash('content_video_instagram_success', 'Paso video_instagram marcado como listo.');
+        session()->flash('content_video_instagram_success', 'Paso Video e Instagram marcado como listo.');
     }
 
     public function viewGeneration(int $generationId, ContentAccessService $accessService): void

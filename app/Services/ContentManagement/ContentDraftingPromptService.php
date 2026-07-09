@@ -8,6 +8,7 @@ use App\Models\ContentArticleStep;
 use App\Models\ContentMasterTemplateVersion;
 use App\Models\EmpresaSeoProperty;
 use App\Models\User;
+use App\Support\ContentManagementLabels;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -25,7 +26,7 @@ class ContentDraftingPromptService
         if ($objectiveStep->step_status !== ContentArticleStep::STATUS_READY) {
             return [
                 'allowed' => false,
-                'message' => 'El paso objective debe estar listo antes de generar Prompt 2.',
+                'message' => 'El paso ' . ContentManagementLabels::stepType(ContentArticleStep::TYPE_OBJECTIVE) . ' debe estar listo antes de generar Prompt 2.',
                 'site_url' => null,
             ];
         }
@@ -43,7 +44,7 @@ class ContentDraftingPromptService
         if ($siteUrl === null) {
             return [
                 'allowed' => false,
-                'message' => 'La empresa no tiene site_url configurado en EmpresaSeoProperty. Prompt 2 no puede generarse.',
+                'message' => 'La empresa no tiene URL del sitio configurada. Prompt 2 no puede generarse.',
                 'site_url' => null,
             ];
         }
@@ -112,7 +113,7 @@ class ContentDraftingPromptService
             ->exists();
 
         if (! $hasGeneration) {
-            throw new RuntimeException('Debes generar al menos un Prompt 2 antes de marcar el paso drafting como listo.');
+            throw new RuntimeException('Debes generar al menos un Prompt 2 antes de marcar el paso ' . ContentManagementLabels::stepType(ContentArticleStep::TYPE_DRAFTING) . ' como listo.');
         }
 
         return DB::transaction(function () use ($article, $user, $draftingStep): ContentArticleStep {
@@ -143,7 +144,7 @@ class ContentDraftingPromptService
             ->first();
 
         if (! $version instanceof ContentMasterTemplateVersion) {
-            throw new RuntimeException('Active master template version for drafting step is not available.');
+            throw new RuntimeException('La plantilla necesaria para Redacción del artículo no está configurada.');
         }
 
         return $version;
@@ -156,7 +157,7 @@ class ContentDraftingPromptService
         $availability = $this->availability($article);
 
         if (! $availability['allowed'] || ! is_string($availability['site_url'])) {
-            throw new RuntimeException((string) ($availability['message'] ?? 'Drafting step is not ready to generate.'));
+            throw new RuntimeException((string) ($availability['message'] ?? 'El paso Redacción del artículo no está listo para generar.'));
         }
 
         $prompt = $templateVersion->template_body;

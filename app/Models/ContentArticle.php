@@ -9,6 +9,7 @@ class ContentArticle extends Model
     public const TONE_TUTEO = 'tuteo';
     public const TONE_USTEO = 'usteo';
 
+    public const MAIN_STATUS_PENDING = 'pending';
     public const MAIN_STATUS_PROCESSING = 'processing';
     public const MAIN_STATUS_UNPUBLISHED = 'unpublished';
     public const MAIN_STATUS_PUBLISHED = 'published';
@@ -26,6 +27,7 @@ class ContentArticle extends Model
     ];
 
     public const MAIN_STATUSES = [
+        self::MAIN_STATUS_PENDING,
         self::MAIN_STATUS_PROCESSING,
         self::MAIN_STATUS_UNPUBLISHED,
         self::MAIN_STATUS_PUBLISHED,

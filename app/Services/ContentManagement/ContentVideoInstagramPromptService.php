@@ -7,6 +7,7 @@ use App\Models\ContentArticleGeneration;
 use App\Models\ContentArticleStep;
 use App\Models\ContentMasterTemplateVersion;
 use App\Models\User;
+use App\Support\ContentManagementLabels;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -26,7 +27,7 @@ class ContentVideoInstagramPromptService
         if ($draftingStep->step_status !== ContentArticleStep::STATUS_READY) {
             return [
                 'allowed' => false,
-                'message' => 'El paso drafting debe estar listo antes de generar Prompt 3.',
+                'message' => 'El paso ' . ContentManagementLabels::stepType(ContentArticleStep::TYPE_DRAFTING) . ' debe estar listo antes de generar Prompt 3.',
             ];
         }
 
@@ -38,7 +39,7 @@ class ContentVideoInstagramPromptService
         if (! $hasDraftingGeneration) {
             return [
                 'allowed' => false,
-                'message' => 'Debe existir al menos una generacion drafting antes de generar Prompt 3.',
+                'message' => 'Debe existir al menos una generacion de ' . ContentManagementLabels::stepType(ContentArticleStep::TYPE_DRAFTING) . ' antes de generar Prompt 3.',
             ];
         }
 
@@ -105,7 +106,7 @@ class ContentVideoInstagramPromptService
             ->exists();
 
         if (! $hasGeneration) {
-            throw new RuntimeException('Debes generar al menos un Prompt 3 antes de marcar el paso video_instagram como listo.');
+            throw new RuntimeException('Debes generar al menos un Prompt 3 antes de marcar el paso ' . ContentManagementLabels::stepType(ContentArticleStep::TYPE_VIDEO_INSTAGRAM) . ' como listo.');
         }
 
         return DB::transaction(function () use ($article, $user, $videoStep): ContentArticleStep {
@@ -136,7 +137,7 @@ class ContentVideoInstagramPromptService
             ->first();
 
         if (! $version instanceof ContentMasterTemplateVersion) {
-            throw new RuntimeException('Active master template version for video_instagram step is not available.');
+            throw new RuntimeException('La plantilla necesaria para Video e Instagram no está configurada.');
         }
 
         return $version;
@@ -154,7 +155,7 @@ class ContentVideoInstagramPromptService
         $availability = $this->availability($article);
 
         if (! $availability['allowed']) {
-            throw new RuntimeException((string) ($availability['message'] ?? 'Video Instagram step is not ready to generate.'));
+            throw new RuntimeException((string) ($availability['message'] ?? 'El paso Video e Instagram no está listo para generar.'));
         }
 
         return implode(PHP_EOL . PHP_EOL, [

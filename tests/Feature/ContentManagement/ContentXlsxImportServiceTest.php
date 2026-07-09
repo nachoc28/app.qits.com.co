@@ -50,6 +50,11 @@ class ContentXlsxImportServiceTest extends TestCase
         $this->assertDatabaseCount('content_imports', 1);
         $this->assertDatabaseCount('content_articles', 2);
         $this->assertDatabaseCount('content_article_steps', 6);
+        $this->assertDatabaseHas('content_articles', [
+            'topic' => 'Tema Uno',
+            'main_status' => ContentArticle::MAIN_STATUS_PENDING,
+            'operational_stage' => ContentArticle::STAGE_PENDING,
+        ]);
     }
 
     public function test_reports_missing_header(): void
@@ -153,7 +158,7 @@ class ContentXlsxImportServiceTest extends TestCase
             'refined_objective' => null,
             'refined_target_audience' => null,
             'tone' => ContentArticle::TONE_TUTEO,
-            'main_status' => ContentArticle::MAIN_STATUS_PROCESSING,
+            'main_status' => ContentArticle::MAIN_STATUS_PENDING,
             'operational_stage' => ContentArticle::STAGE_PENDING,
         ]);
 

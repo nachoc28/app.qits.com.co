@@ -19,6 +19,7 @@ trait CreatesApplication
      */
     public function createApplication()
     {
+        $this->prepareSafeTestingApplicationKey();
         $this->prepareIsolatedTestingDatabase();
 
         $app = require __DIR__.'/../bootstrap/app.php';
@@ -26,6 +27,18 @@ trait CreatesApplication
         $app->make(Kernel::class)->bootstrap();
 
         return $app;
+    }
+
+    protected function prepareSafeTestingApplicationKey(): void
+    {
+        if ($this->readEnvironmentValue('APP_ENV') !== 'testing') {
+            return;
+        }
+
+        $this->writeEnvironmentValue(
+            'APP_KEY',
+            'base64:'.base64_encode(hash('sha256', 'qits-safe-testing-application-key', true))
+        );
     }
 
     protected function prepareIsolatedTestingDatabase(): void

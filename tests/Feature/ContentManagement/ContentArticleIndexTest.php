@@ -181,6 +181,33 @@ class ContentArticleIndexTest extends TestCase
             ->assertDontSee('Tema Paginado 01');
     }
 
+    public function test_listing_shows_spanish_status_labels_without_internal_codes(): void
+    {
+        $empresa = $this->createEmpresa('Empresa Labels');
+        $user = $this->createUser('Administrador');
+
+        $this->createArticle($empresa, $user, [
+            'topic' => 'Articulo Pendiente',
+            'main_status' => ContentArticle::MAIN_STATUS_PENDING,
+            'operational_stage' => ContentArticle::STAGE_PENDING,
+        ]);
+        $this->createArticle($empresa, $user, [
+            'topic' => 'Articulo En Proceso',
+            'main_status' => ContentArticle::MAIN_STATUS_PROCESSING,
+            'operational_stage' => ContentArticle::STAGE_DRAFTING,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('admin.content-management.index'))
+            ->assertOk()
+            ->assertSeeText('Pendiente')
+            ->assertSeeText('En proceso')
+            ->assertSeeText('Redacción del artículo')
+            ->assertDontSeeText('PROCESSING')
+            ->assertDontSeeText('pending')
+            ->assertDontSeeText('drafting');
+    }
+
     public function test_authorized_user_can_access_article_index_route(): void
     {
         $empresa = $this->createEmpresa('Empresa Acceso');

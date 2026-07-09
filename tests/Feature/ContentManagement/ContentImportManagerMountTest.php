@@ -82,7 +82,60 @@ class ContentImportManagerMountTest extends TestCase
         $response->assertOk();
         $response->assertSee('Gestión de Contenidos - Importación XLSX');
         $response->assertSee('Importación XLSX de contenidos');
+        $response->assertSee('validación');
+        $response->assertSee('importación');
+        $response->assertSee('archivo');
         $response->assertSee('Empresa Visible');
+    }
+
+    public function test_loading_indicators_are_hidden_at_rest_and_target_specific(): void
+    {
+        $empresa = $this->createEmpresa('Empresa Visible');
+        $user = $this->createUser('Cliente', $empresa);
+
+        $html = $this->actingAs($user)
+            ->get(route('admin.content-management.imports'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('wire:loading.flex wire:target="validateImport" style="display: none;"', $html);
+        $this->assertStringContainsString('wire:loading.flex wire:target="confirmImport" style="display: none;"', $html);
+        $this->assertStringContainsString('wire:loading.remove wire:target="validateImport"', $html);
+        $this->assertStringContainsString('wire:loading.remove wire:target="confirmImport"', $html);
+        $this->assertStringContainsString('wire:click="validateImport"', $html);
+        $this->assertStringContainsString('wire:click="confirmImport"', $html);
+        $this->assertStringNotContainsString('wire:target="validateImport,xlsxFile"', $html);
+        $this->assertStringNotContainsString('wire:loading wire:target="validateImport" class="inline-flex', $html);
+        $this->assertStringNotContainsString('wire:loading wire:target="confirmImport" class="inline-flex', $html);
+    }
+
+    public function test_validation_summary_renders_utf8_messages(): void
+    {
+        $empresa = $this->createEmpresa('Empresa Única');
+        $user = $this->createUser('Cliente', $empresa);
+
+        Livewire::actingAs($user)
+            ->test(ContentImportManager::class)
+            ->set('previewResult', [
+                'persisted' => false,
+                'total_rows' => 1,
+                'valid_rows' => 1,
+                'duplicate_rows' => 0,
+                'created' => 0,
+                'can_persist' => true,
+                'errors' => [],
+                'errors_preview' => [],
+                'errors_remaining' => 0,
+                'file_info' => [
+                    'filename' => 'contenidos.xlsx',
+                    'empresa_name' => 'Empresa Única',
+                ],
+            ])
+            ->assertSee('Resultado de la validación previa')
+            ->assertSee('Filas válidas')
+            ->assertSee('La validación previa no encontró errores ni duplicados.')
+            ->assertDontSee('Ã')
+            ->assertDontSee('Â');
     }
 
     public function test_unauthorized_user_is_blocked_from_import_route(): void

@@ -229,7 +229,7 @@ class ContentXlsxImportService
                 'refined_objective' => null,
                 'refined_target_audience' => null,
                 'tone' => $tone,
-                'main_status' => ContentArticle::MAIN_STATUS_PROCESSING,
+                'main_status' => ContentArticle::MAIN_STATUS_PENDING,
                 'operational_stage' => ContentArticle::STAGE_PENDING,
             ]);
 

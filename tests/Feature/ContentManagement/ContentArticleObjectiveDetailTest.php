@@ -16,7 +16,9 @@ use App\Services\ContentManagement\ContentAccessService;
 use App\Services\ContentManagement\ContentObjectivePromptService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Livewire\Livewire;
+use Mockery;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
@@ -76,7 +78,7 @@ class ContentArticleObjectiveDetailTest extends TestCase
         $empresa = $this->createEmpresa('Empresa Flow');
         $user = $this->createUser('Administrador');
         $article = $this->createArticle($empresa, $user, [
-            'main_status' => ContentArticle::MAIN_STATUS_PROCESSING,
+            'main_status' => ContentArticle::MAIN_STATUS_PENDING,
             'operational_stage' => ContentArticle::STAGE_PENDING,
         ]);
         $this->createObjectiveTemplateVersion(1, 'Plantilla objective [ ].', true);
@@ -134,6 +136,41 @@ class ContentArticleObjectiveDetailTest extends TestCase
         $this->assertSame(ContentArticleStep::STATUS_READY, $step->step_status);
     }
 
+    public function test_started_processing_article_keeps_processing_on_regeneration(): void
+    {
+        $empresa = $this->createEmpresa('Empresa Started');
+        $user = $this->createUser('Administrador');
+        $article = $this->createArticle($empresa, $user, [
+            'main_status' => ContentArticle::MAIN_STATUS_PROCESSING,
+            'operational_stage' => ContentArticle::STAGE_STRATEGIC_REFINEMENT,
+        ]);
+        $step = $this->objectiveStep($article);
+        $step->forceFill([
+            'step_status' => ContentArticleStep::STATUS_IN_PROGRESS,
+        ])->save();
+        $activeVersion = $this->createObjectiveTemplateVersion(1, 'Plantilla objective [ ].', true);
+
+        ContentArticleGeneration::create([
+            'content_article_id' => $article->id,
+            'content_master_template_version_id' => $activeVersion->id,
+            'step_type' => ContentArticleStep::TYPE_OBJECTIVE,
+            'final_prompt_text' => 'Prompt previo',
+            'generated_by' => $user->id,
+            'generated_at' => now()->subMinute(),
+        ]);
+
+        /** @var ContentObjectivePromptService $service */
+        $service = app(ContentObjectivePromptService::class);
+        $service->generate($article->fresh(), $user);
+
+        $article->refresh();
+        $step->refresh();
+
+        $this->assertSame(ContentArticle::MAIN_STATUS_PROCESSING, $article->main_status);
+        $this->assertSame(ContentArticle::STAGE_STRATEGIC_REFINEMENT, $article->operational_stage);
+        $this->assertSame(ContentArticleStep::STATUS_IN_PROGRESS, $step->step_status);
+    }
+
     public function test_user_without_access_cannot_generate_even_if_article_id_is_tampered(): void
     {
         $empresaVisible = $this->createEmpresa('Empresa Visible');
@@ -164,6 +201,84 @@ class ContentArticleObjectiveDetailTest extends TestCase
         $this->assertSame(0, ContentArticleGeneration::query()
             ->where('content_article_id', $hiddenArticle->id)
             ->count());
+    }
+
+    public function test_missing_active_objective_template_shows_controlled_message_and_logs_detail(): void
+    {
+        $empresa = $this->createEmpresa('Empresa Missing Template');
+        $user = $this->createUser('Administrador');
+        $article = $this->createArticle($empresa, $user);
+        $this->createObjectiveTemplateVersion(1, 'Plantilla objective inactiva [ ].', false);
+
+        Log::shouldReceive('error')
+            ->once()
+            ->with(
+                '[CONTENT][PROMPT][OBJECTIVE_TEMPLATE_MISSING] Active template version is not available.',
+                Mockery::on(static function (array $context) use ($article, $user): bool {
+                    return ($context['step_type'] ?? null) === ContentArticleStep::TYPE_OBJECTIVE
+                        && ($context['template_exists'] ?? null) === true
+                        && ($context['template_is_active'] ?? null) === true
+                        && ($context['versions_count'] ?? null) === 1
+                        && ($context['active_versions_count'] ?? null) === 0
+                        && ($context['content_article_id'] ?? null) === $article->id
+                        && ($context['user_id'] ?? null) === $user->id;
+                })
+            );
+
+        Livewire::actingAs($user)
+            ->test(ContentArticleObjectiveDetail::class, ['articleId' => $article->id])
+            ->call('generatePrompt')
+            ->assertSee('La plantilla necesaria para este paso no está configurada. Contacta al administrador.');
+
+        $this->assertSame(0, ContentArticleGeneration::query()
+            ->where('content_article_id', $article->id)
+            ->where('step_type', ContentArticleStep::TYPE_OBJECTIVE)
+            ->count());
+    }
+
+    public function test_detail_shows_spanish_labels_for_statuses_and_steps(): void
+    {
+        $empresa = $this->createEmpresa('Empresa Labels');
+        $user = $this->createUser('Administrador');
+        $article = $this->createArticle($empresa, $user, [
+            'main_status' => ContentArticle::MAIN_STATUS_PROCESSING,
+            'operational_stage' => ContentArticle::STAGE_DRAFTING,
+            'refined_objective' => 'Objetivo refinado',
+            'refined_target_audience' => 'Publico refinado',
+        ]);
+
+        $this->objectiveStep($article)->forceFill([
+            'step_status' => ContentArticleStep::STATUS_READY,
+            'ready_by' => $user->id,
+            'ready_at' => now(),
+        ])->save();
+
+        ContentArticleStep::query()
+            ->where('content_article_id', $article->id)
+            ->where('step_type', ContentArticleStep::TYPE_DRAFTING)
+            ->update(['step_status' => ContentArticleStep::STATUS_IN_PROGRESS]);
+
+        $this->actingAs($user)
+            ->get(route('admin.content-management.articles.show', $article))
+            ->assertOk()
+            ->assertSeeText('Paso 1')
+            ->assertSeeText('Definir objetivo')
+            ->assertSeeText('Paso 2')
+            ->assertSeeText('Redactar')
+            ->assertSeeText('Paso 3')
+            ->assertSeeText('Crear contenido para video e Instagram')
+            ->assertSeeText('Bloqueado')
+            ->assertSeeText('En proceso')
+            ->assertSeeText('Redacción')
+            ->assertSeeText('Objetivo')
+            ->assertSeeText('Video e Instagram')
+            ->assertSeeText('Listo')
+            ->assertSeeText('Copiar prompt')
+            ->assertDontSeeText('objective')
+            ->assertDontSeeText('drafting')
+            ->assertDontSeeText('video_instagram')
+            ->assertDontSeeText('ready_at')
+            ->assertDontSeeText('ready_by');
     }
 
     public function test_saving_refined_fields_preserves_general_fields(): void
@@ -321,7 +436,7 @@ class ContentArticleObjectiveDetailTest extends TestCase
             'refined_objective' => null,
             'refined_target_audience' => null,
             'tone' => ContentArticle::TONE_TUTEO,
-            'main_status' => ContentArticle::MAIN_STATUS_PROCESSING,
+            'main_status' => ContentArticle::MAIN_STATUS_PENDING,
             'operational_stage' => ContentArticle::STAGE_PENDING,
             'delivered_at' => null,
             'delivered_by' => null,

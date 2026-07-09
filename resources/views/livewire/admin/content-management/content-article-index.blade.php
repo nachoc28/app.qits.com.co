@@ -46,8 +46,8 @@
                     class="mt-1 w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                 >
                     <option value="">Todos</option>
-                    @foreach($mainStatusOptions as $statusOption)
-                        <option value="{{ $statusOption }}">{{ $statusOption }}</option>
+                    @foreach($mainStatusOptions as $statusValue => $statusLabel)
+                        <option value="{{ $statusValue }}">{{ $statusLabel }}</option>
                     @endforeach
                 </select>
             </div>
@@ -85,11 +85,11 @@
                 <span class="block mt-1">Prioridad 1. Requiere continuidad inmediata.</span>
             </div>
             <div class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2">
-                <span class="font-semibold text-blue-800">Pendiente mes actual</span>
+                <span class="font-semibold text-blue-800">Sin publicar mes actual</span>
                 <span class="block mt-1">Prioridad 2. Sigue el calendario operativo vigente.</span>
             </div>
             <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-                <span class="font-semibold text-gray-700">Pendiente fuera del mes</span>
+                <span class="font-semibold text-gray-700">Sin publicar fuera del mes</span>
                 <span class="block mt-1">Prioridad 3. Visible pero fuera del foco inmediato.</span>
             </div>
             <div class="rounded-lg border border-green-200 bg-green-50 px-3 py-2">
@@ -127,11 +127,8 @@
                                 : ($isCurrentMonthUnpublished
                                     ? 'bg-blue-50'
                                     : ($isPublished ? 'bg-green-50' : 'bg-white'));
-                            $statusLabel = $isProcessing
-                                ? 'En proceso'
-                                : ($isCurrentMonthUnpublished
-                                    ? 'Pendiente mes actual'
-                                    : ($isPublished ? 'Publicado' : 'Pendiente'));
+                            $statusLabel = \App\Support\ContentManagementLabels::mainStatus($article->main_status);
+                            $stageLabel = \App\Support\ContentManagementLabels::operationalStage($article->operational_stage);
                             $statusClass = $isProcessing
                                 ? 'border-yellow-200 bg-yellow-100 text-yellow-800'
                                 : ($isCurrentMonthUnpublished
@@ -154,10 +151,9 @@
                                 <span class="inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold {{ $statusClass }}">
                                     {{ $statusLabel }}
                                 </span>
-                                <div class="mt-1 text-xs uppercase tracking-wide text-gray-500">{{ $article->main_status }}</div>
                             </td>
                             <td class="px-4 py-3">
-                                <div class="font-medium text-gray-800">{{ str_replace('_', ' ', $article->operational_stage) }}</div>
+                                <div class="font-medium text-gray-800">{{ $stageLabel }}</div>
                             </td>
                             <td class="px-4 py-3">
                                 @if($article->delivered_at)
@@ -209,11 +205,8 @@
                     : ($isCurrentMonthUnpublished
                         ? 'border-blue-200 bg-blue-50'
                         : ($isPublished ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-white'));
-                $statusLabel = $isProcessing
-                    ? 'En proceso'
-                    : ($isCurrentMonthUnpublished
-                        ? 'Pendiente mes actual'
-                        : ($isPublished ? 'Publicado' : 'Pendiente'));
+                $statusLabel = \App\Support\ContentManagementLabels::mainStatus($article->main_status);
+                $stageLabel = \App\Support\ContentManagementLabels::operationalStage($article->operational_stage);
                 $actionLabel = $article->operational_stage === \App\Models\ContentArticle::STAGE_PENDING ? 'Generar' : 'Continuar';
             @endphp
             <div class="rounded-2xl border p-4 shadow-sm {{ $cardClass }}">
@@ -231,8 +224,8 @@
                 <div class="mt-3 break-words text-sm font-medium text-gray-900">{{ $article->topic }}</div>
 
                 <div class="mt-4 space-y-2 text-sm text-gray-700">
-                    <div><span class="font-medium">Estado:</span> {{ $article->main_status }}</div>
-                    <div><span class="font-medium">Etapa:</span> {{ str_replace('_', ' ', $article->operational_stage) }}</div>
+                    <div><span class="font-medium">Estado:</span> {{ $statusLabel }}</div>
+                    <div><span class="font-medium">Etapa:</span> {{ $stageLabel }}</div>
                     <div><span class="font-medium">Entregado:</span> {{ $article->delivered_at ? 'Sí' : 'No' }}</div>
                     <div><span class="font-medium">Publicado:</span> {{ $article->published_at ? 'Sí' : 'No' }}</div>
                     <div><span class="font-medium">Actualizado:</span> {{ optional($article->updated_at)->format('Y-m-d H:i') ?: '-' }}</div>

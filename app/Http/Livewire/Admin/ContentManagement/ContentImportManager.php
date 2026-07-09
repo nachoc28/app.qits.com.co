@@ -105,7 +105,7 @@ class ContentImportManager extends Component
             $this->previewResult = $this->prepareResultForView($preview);
             $this->canConfirmImport = (bool) ($preview['can_persist'] ?? false) && $this->stagedFilePath !== null;
         } catch (Throwable $e) {
-            Log::error('[CONTENT][XLSX][PREVIEW] Error durante validaciÃ³n previa.', [
+            Log::error('[CONTENT][XLSX][PREVIEW] Error durante validación previa.', [
                 'empresa_id' => $empresa->id,
                 'user_id' => auth()->id(),
                 'exception_class' => get_class($e),
@@ -125,7 +125,7 @@ class ContentImportManager extends Component
         $service = app(ContentXlsxImportService::class);
 
         if (! $this->canConfirmImport || ! is_string($this->stagedFilePath) || $this->stagedFilePath === '') {
-            $this->importError = 'Debes validar un archivo sin errores antes de confirmar la importaciÃ³n.';
+            $this->importError = 'Debes validar un archivo sin errores antes de confirmar la importación.';
 
             return;
         }
@@ -149,19 +149,19 @@ class ContentImportManager extends Component
             $this->xlsxFile = null;
 
             if (($result['persisted'] ?? false) === true) {
-                session()->flash('content_import_saved', 'ImportaciÃ³n XLSX completada correctamente.');
+                session()->flash('content_import_saved', 'Importación XLSX completada correctamente.');
             } else {
-                $this->importError = 'La importaciÃ³n no pudo completarse.';
+                $this->importError = 'La importación no pudo completarse.';
             }
         } catch (Throwable $e) {
-            Log::error('[CONTENT][XLSX][CONFIRM] Error durante importaciÃ³n definitiva.', [
+            Log::error('[CONTENT][XLSX][CONFIRM] Error durante importación definitiva.', [
                 'empresa_id' => $empresa->id,
                 'user_id' => auth()->id(),
                 'exception_class' => get_class($e),
                 'exception_message' => $e->getMessage(),
             ]);
 
-            $this->importError = 'Error interno al confirmar la importaciÃ³n XLSX.';
+            $this->importError = 'Error interno al confirmar la importación XLSX.';
         } finally {
             $service->deleteTemporaryFile($this->stagedFilePath);
             $this->stagedFilePath = null;
@@ -202,11 +202,11 @@ class ContentImportManager extends Component
     {
         return [
             'selectedEmpresaId.required' => 'Debes seleccionar una empresa.',
-            'selectedEmpresaId.integer' => 'La empresa seleccionada no es vÃ¡lida.',
-            'tone.required' => 'Debes seleccionar el tono del artÃ­culo.',
+            'selectedEmpresaId.integer' => 'La empresa seleccionada no es válida.',
+            'tone.required' => 'Debes seleccionar el tono del artículo.',
             'tone.in' => 'El tono debe ser tuteo o usteo.',
             'xlsxFile.required' => 'Debes seleccionar un archivo XLSX.',
-            'xlsxFile.file' => 'El archivo cargado no es vÃ¡lido.',
+            'xlsxFile.file' => 'El archivo cargado no es válido.',
             'xlsxFile.mimes' => 'Solo se aceptan archivos .xlsx.',
             'xlsxFile.max' => 'El archivo no puede superar 10 MB.',
         ];
@@ -224,7 +224,7 @@ class ContentImportManager extends Component
 
         if (! in_array($empresaId, $authorizedIds, true)) {
             throw ValidationException::withMessages([
-                'selectedEmpresaId' => 'La empresa seleccionada no estÃ¡ autorizada para este usuario.',
+                'selectedEmpresaId' => 'La empresa seleccionada no está autorizada para este usuario.',
             ]);
         }
 

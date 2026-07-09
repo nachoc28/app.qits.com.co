@@ -2,9 +2,11 @@
 
 namespace App\Services\ContentManagement;
 
+use App\Exceptions\ContentManagement\MissingActiveTemplateVersionException;
 use App\Models\ContentArticle;
 use App\Models\ContentArticleGeneration;
 use App\Models\ContentArticleStep;
+use App\Models\ContentMasterTemplate;
 use App\Models\ContentMasterTemplateVersion;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -119,10 +121,45 @@ class ContentObjectivePromptService
             ->first();
 
         if (! $version instanceof ContentMasterTemplateVersion) {
-            throw new RuntimeException('Active master template version for objective step is not available.');
+            throw new MissingActiveTemplateVersionException(
+                ContentArticleStep::TYPE_OBJECTIVE,
+                $this->templateAvailabilityContext(ContentArticleStep::TYPE_OBJECTIVE)
+            );
         }
 
         return $version;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function templateAvailabilityContext(string $templateKey): array
+    {
+        $template = ContentMasterTemplate::query()
+            ->where('key', $templateKey)
+            ->first();
+
+        if (! $template instanceof ContentMasterTemplate) {
+            return [
+                'template_exists' => false,
+                'template_is_active' => null,
+                'versions_count' => 0,
+                'active_versions_count' => 0,
+            ];
+        }
+
+        return [
+            'template_exists' => true,
+            'template_id' => $template->id,
+            'template_is_active' => (bool) $template->is_active,
+            'versions_count' => ContentMasterTemplateVersion::query()
+                ->where('content_master_template_id', $template->id)
+                ->count(),
+            'active_versions_count' => ContentMasterTemplateVersion::query()
+                ->where('content_master_template_id', $template->id)
+                ->where('is_active', true)
+                ->count(),
+        ];
     }
 
     private function resolveObjectiveStep(ContentArticle $article): ContentArticleStep

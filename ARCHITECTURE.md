@@ -6,6 +6,14 @@
 
 ---
 
+## Security Note - Testing Environment Files
+
+- Real `.env.testing` files must not be committed.
+- The repository provides `.env.testing.example` with empty secret values only.
+- Test bootstrap prepares a non-secret runtime `APP_KEY` when `APP_ENV=testing`; the repository must not contain a real Laravel `APP_KEY` for tests.
+- `.gitignore` blocks `.env.*` files by default and allows only safe examples such as `.env.example` and `.env.testing.example`.
+- If a real key is ever committed, remove it from tracking immediately, rotate affected environments after confirming scope, and plan history cleanup separately.
+
 ## 0. System Snapshot (AI Context)
 
 **Current State (as of 2026-07-09):**
@@ -898,11 +906,21 @@ URL: https://app.qits.com.co/s/{{1}}
 - tenant for an article is resolved via `content_articles -> content_imports -> empresa`
 
 **Key lifecycle enums:**
-- `content_articles.main_status`: `processing | unpublished | published`
+- `content_articles.main_status`: `pending | processing | unpublished | published`
 - `content_articles.operational_stage`: `pending | strategic_refinement | drafting | video_instagram | final_file | completed`
 - `content_article_steps.step_type`: `objective | drafting | video_instagram`
 - `content_article_steps.step_status`: `pending | in_progress | ready`
 - `content_articles.tone`: `tuteo | usteo`
+
+**Visible labels:**
+- User-facing Content Management labels are centralized in `App\Support\ContentManagementLabels`.
+- Internal enum values remain unchanged in database, models, services and queries.
+- Blade views must use the centralized labels for:
+  - main statuses
+  - operational stages
+  - step types
+  - step statuses
+- UI should not print internal codes such as `processing`, `pending`, `drafting`, `objective`, `video_instagram`, `ready_by` or `ready_at` as visible text.
 
 **Initial XLSX import contract (implemented):**
 - accepted format: `.xlsx` only
@@ -924,6 +942,17 @@ URL: https://app.qits.com.co/s/{{1}}
   - `content_articles`
   - 3 `content_article_steps` per article
   - all inside one database transaction
+- imported articles start with:
+  - `content_articles.main_status = pending`
+  - `content_articles.operational_stage = pending`
+- data correction migration:
+  - moves only legacy unstarted records from `processing` to `pending`
+  - condition: `main_status = processing`, `operational_stage = pending`, and no `content_article_generations`
+  - records with generations or started operational stages remain untouched
+- import UI loading indicators:
+  - button loading states use Livewire 2 `wire:loading.flex` with inline `display: none` at rest
+  - validation and confirmation buttons target only `validateImport` and `confirmImport` respectively
+  - text remains visible at rest and loading text/spinner is shown only during the matching action
 
 **Main article listing (implemented):**
 - visible fields:
@@ -962,6 +991,10 @@ URL: https://app.qits.com.co/s/{{1}}
   - detail route does not rely on UI filters; it revalidates access before rendering
 
 **Objective operational flow (implemented):**
+- UI composition:
+  - rendered as card `Paso 1 · Definir objetivo y público`
+  - groups step status, explanation, Prompt 1 generation, prompt copy action, selected prompt, refined fields, history and ready action in one visual unit
+  - remains inside `ContentArticleObjectiveDetail`; child components for later steps are still mounted separately
 - visible article data:
   - empresa
   - fecha
@@ -972,7 +1005,7 @@ URL: https://app.qits.com.co/s/{{1}}
   - publico objetivo refinado
   - estado principal
   - etapa operativa
-  - estado del paso `objective`
+  - estado del paso Objetivo y publico
 - prompt generation:
   - uses the active template where `content_master_templates.key = objective`
   - each click on generate/regenerate creates a new `content_article_generations` row
@@ -983,8 +1016,11 @@ URL: https://app.qits.com.co/s/{{1}}
     - `final_prompt_text`
     - `generated_by`
     - `generated_at`
+  - if no active `objective` template version exists, the UI shows:
+    - `La plantilla necesaria para este paso no está configurada. Contacta al administrador.`
+  - missing active template details are logged with template existence, template active state and active version count
 - first-generation state transition:
-  - `content_articles.main_status = processing`
+  - `content_articles.main_status` changes from `pending` to `processing`
   - `content_articles.operational_stage = strategic_refinement`
   - objective step moves to `in_progress`
 - regeneration behavior:
@@ -1002,6 +1038,10 @@ URL: https://app.qits.com.co/s/{{1}}
     - `ready_at`
 
 **Drafting operational flow (implemented):**
+- UI composition:
+  - rendered as card `Paso 2 · Redactar artículo`
+  - groups step status, blocking message, Prompt 2 generation, prompt copy action, selected prompt, history and ready action in one visual unit
+  - blocked prerequisites are shown explicitly as `Bloqueado`
 - access and readiness preconditions:
   - `objective` step must already be `ready`
   - `refined_objective` must be present
@@ -1046,6 +1086,10 @@ URL: https://app.qits.com.co/s/{{1}}
     - `content_articles.main_status` remains `processing`
 
 **Video Instagram operational flow (implemented):**
+- UI composition:
+  - rendered as card `Paso 3 · Crear contenido para video e Instagram`
+  - groups step status, blocking message, Word/PDF attachment instruction, Prompt 3 generation, prompt copy action, selected prompt, history and ready action in one visual unit
+  - blocked prerequisites are shown explicitly as `Bloqueado`
 - access and readiness preconditions:
   - `drafting` step must already be `ready`
   - at least one `drafting` generation must already exist

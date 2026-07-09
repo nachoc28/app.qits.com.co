@@ -2,12 +2,14 @@
 
 namespace App\Http\Livewire\Admin\ContentManagement;
 
+use App\Exceptions\ContentManagement\MissingActiveTemplateVersionException;
 use App\Models\ContentArticle;
 use App\Models\ContentArticleStep;
 use App\Models\User;
 use App\Services\ContentManagement\ContentAccessService;
 use App\Services\ContentManagement\ContentObjectivePromptService;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Log;
 use Livewire\Component;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -24,6 +26,9 @@ class ContentArticleObjectiveDetail extends Component
 
     /** @var int|null */
     public $selectedGenerationId = null;
+
+    /** @var string|null */
+    public $templateConfigurationMessage = null;
 
     public function mount(int $articleId, ContentAccessService $accessService): void
     {
@@ -52,9 +57,26 @@ class ContentArticleObjectiveDetail extends Component
 
         /** @var User $user */
         $user = auth()->user();
-        $generation = $promptService->generate($article, $user);
+
+        try {
+            $generation = $promptService->generate($article, $user);
+        } catch (MissingActiveTemplateVersionException $e) {
+            Log::error('[CONTENT][PROMPT][OBJECTIVE_TEMPLATE_MISSING] Active template version is not available.', array_merge(
+                $e->context(),
+                [
+                    'content_article_id' => $article->id,
+                    'user_id' => $user->id,
+                    'route' => optional(request()->route())->getName(),
+                ]
+            ));
+
+            $this->templateConfigurationMessage = $e->userMessage();
+
+            return;
+        }
 
         $this->selectedGenerationId = $generation->id;
+        $this->templateConfigurationMessage = null;
         session()->flash('content_objective_success', 'Prompt 1 generado correctamente.');
     }
 
@@ -104,7 +126,7 @@ class ContentArticleObjectiveDetail extends Component
             ]);
         }
 
-        session()->flash('content_objective_success', 'Paso objective marcado como listo.');
+        session()->flash('content_objective_success', 'Paso Objetivo y público marcado como listo.');
     }
 
     public function viewGeneration(int $generationId, ContentAccessService $accessService): void
