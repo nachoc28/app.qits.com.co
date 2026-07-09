@@ -1,0 +1,206 @@
+REDACCIÓN ARTÍCULO
+
+1. Datos clave para iniciar cada encargo:
+
+URL del sitio web: _
+Tema del artículo: _
+Objetivo del artículo: _
+Público objetivo del artículo: _
+Tono de voz: Tuteo - Usteo
+
+El contenido debe:
+
+* Resolver la intención de búsqueda
+* Ser estructurado y escaneable
+* Poder ser citado por motores de IA
+
+### 2. INVESTIGACIÓN (OBLIGATORIA)
+
+Antes de escribir:
+
+* Necesito una investigación profunda. 
+OBLIGATORIO: Investiga en internet primero.
+* Investigar información actualizada (preferiblemente 2025–2026)
+* Priorizar fuentes en este orden:
+
+  1. Fuentes oficiales y/o Académicas
+  2. Estudios o documentos técnicos
+  3. Medios especializados
+  4. Casos reales documentados
+
+### Reglas:
+
+* No inventar datos
+* No usar información desactualizada
+* Diferenciar entre:
+
+  * hechos comprobables
+  * interpretación o análisis
+
+### 2. INSTRUCCIONES DE REDACCIÓN OBLIGATORIAS:
+•	Extensión: Máximo 800 palabras exactas.
+•	Estructura: Introducción + Puntos importantes + Conclusión.
+•	Título con frase clave al inicio. 8-12 palabras. Máx. 60 caracteres.
+•	Frase clave repetida solo 2 o 3 veces. Usar sinónimos el resto del texto.
+•	Párrafos breves. Frases claras. Voz activa.
+•	Una oración en negrita cada tres párrafos.
+•	Listas, subtítulos y separaciones visuales.
+•	Lenguaje profesional, sin tecnicismos innecesarios.
+•	Sin lenguaje de venta directa.
+•	Incluye siempre una sección final titulada 'Referencias y fuentes' con enlaces reales y verificables (preferiblemente entidades gubernamentales, medios especializados y fuentes técnicas).
+
+Además:
+
+•	Integra al menos 3 citas técnicas dentro del contenido (con enlaces externos reales).
+•	Usa texto ancla descriptivo orientado a SEO (no genérico como “haz clic aquí”).
+•	Prioriza fuentes oficiales o especializadas en Colombia.
+•	Diferencia claramente entre hechos basados en normativa y explicaciones interpretativas.
+•	Optimiza el contenido para featured snippets respondiendo preguntas clave en subtítulos.
+•	Asegura que el contenido pueda ser utilizado como fuente por motores de IA mediante estructura clara, lenguaje directo y autoridad técnica.
+•	Evita enlaces rotos o inventados. Todos deben ser verificables."
+
+ENTREGABLE (Formato estructurado)
+Parte 1 – Texto principal en HTML limpio para Gutenberg
+
+## 4. ESTRUCTURA DEL ARTÍCULO (OBLIGATORIA)
+
+### Título (H1)
+
+* 8–12 palabras
+* Máximo 60 caracteres
+* Incluir palabra clave principal + contexto
+---
+### Introducción
+
+* Incluir palabra clave principal
+* Explicar el problema
+* Mostrar impacto o relevancia
+
+---
+
+### Párrafo resumen (OBLIGATORIO para IA)
+
+Después de la introducción:
+
+```html
+<p><strong>Resumen: explicación breve en 2–3 líneas del contenido.</strong></p>
+```
+---
+
+### Desarrollo (cuerpo del artículo)
+
+* Usar `<h2>` para secciones principales
+* Usar `<h3>` para subtemas (OBLIGATORIO cuando haya listas o desglose)
+* Incluir:
+
+  * listas `<ul>`
+  * párrafos cortos
+  * estructura lógica
+---
+
+### Bloques para IA (CRÍTICO)
+
+Incluir mínimo 2 secciones tipo:
+
+```html
+<h2>Pregunta clara optimizada SEO</h2>
+<p>Respuesta directa, clara y breve (2–3 líneas).</p>
+```
+---
+
+### Conclusión
+
+* Cierre claro
+* Refuerzo del mensaje principal
+* Sin venta agresiva
+
+---
+
+### Referencias
+
+Sección obligatoria:
+
+```html
+<h2>Referencias y fuentes</h2>
+<ul>
+<li><a href="URL" target="_blank" rel="noopener noreferrer">Texto ancla descriptivo</a></li>
+</ul>
+```
+---
+
+## 5. SEO Y OPTIMIZACIÓN (OBLIGATORIO)
+
+### 🔑 Keywords
+
+* Usar palabra clave principal solo 2–3 veces
+* Incluir variaciones semánticas (sinónimos)
+* No hacer keyword stuffing
+
+---
+
+### 🔗 Enlaces
+
+#### ✔ Enlaces externos:
+
+* Siempre deben abrir en nueva pestaña:
+
+```html
+<a href="URL" target="_blank" rel="noopener noreferrer">anchor descriptivo</a>
+```
+
+* Usar texto ancla descriptivo (NO “haz clic aquí”)
+
+* NO usar `nofollow` excepto en:
+
+  * enlaces patrocinados
+  * afiliados
+
+---
+
+#### ✔ Enlaces internos:
+
+* Incluir mínimo 1 enlaces internos
+* Formato:
+
+```html
+<a href="/ruta-seo">anchor optimizado</a>
+```
+
+Solo etiquetas:
+
+Sin clases, sin estilos ni scripts.
+### 🔸 Formato adicional:
+
+* Una frase en **negrita** cada 2–3 párrafos
+* Buena escaneabilidad
+* Evitar bloques largos de texto
+
+## 7. OPTIMIZACIÓN PARA IA (CRÍTICO)
+
+El contenido debe:
+
+* Responder preguntas reales
+* Tener estructura clara
+* Ser fácilmente extraíble
+* Incluir definiciones y respuestas directas
+* Evitar ambigüedad
+*  Pensar en la experiencia del lector, no solo en el SEO.
+
+Parte 2 – Texto plano para SEO y redes sociales
+•	Excerpt (20–30 palabras)
+•	Metadescription (150–160 caracteres)
+•	5 Meta-tags separados por comas
+•	Publicación para Facebook (título, descripción, hashtags)
+•	Publicación para LinkedIn (título, descripción 1–2 párrafos, hashtags)
+•	Publicación de texto para actualización en perfil de Google Maps teniendo en cuenta mejores prácticas de publicaciones de actualizaciones en perfil de Google maps (título, texto breve, orientado a valor informativo, no venta agresiva)
+
+4. Reglas críticas (No negociables)
+•	❌ Nunca incluir enlaces ficticios o rutas no verificadas.
+•	❌ Nunca inventar leyes, cifras o referencias.
+•	❌ No usar acrónimos en exceso ni tecnicismos innecesarios.
+•	✅ Validar el sitio antes de incluir enlaces internos.
+
+
+
+
+

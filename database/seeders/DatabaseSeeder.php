@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             TiposUsuariosSeeder::class,
             AdminAndApiUsersSeeder::class,
             ServicioSeeder::class,
+            ContentMasterTemplatesSeeder::class,
         ]);
     }
 }

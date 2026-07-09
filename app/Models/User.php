@@ -82,4 +82,34 @@ class User extends Authenticatable
         return $this->hasMany(Lead::class, 'converted_user_id');
     }
 
+    public function contentImports()
+    {
+        return $this->hasMany(ContentImport::class, 'imported_by');
+    }
+
+    public function contentReadySteps()
+    {
+        return $this->hasMany(ContentArticleStep::class, 'ready_by');
+    }
+
+    public function contentGenerations()
+    {
+        return $this->hasMany(ContentArticleGeneration::class, 'generated_by');
+    }
+
+    public function contentFiles()
+    {
+        return $this->hasMany(ContentArticleFile::class, 'uploaded_by');
+    }
+
+    public function deliveredContentArticles()
+    {
+        return $this->hasMany(ContentArticle::class, 'delivered_by');
+    }
+
+    public function publishedContentArticles()
+    {
+        return $this->hasMany(ContentArticle::class, 'published_by');
+    }
+
 }

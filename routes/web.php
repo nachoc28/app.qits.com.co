@@ -1,9 +1,12 @@
 <?php
 
 use App\Http\Controllers\Integrations\GoogleOAuthController;
+use App\Http\Controllers\Admin\ContentManagement\ContentArticleFileDownloadController;
 use App\Http\Controllers\PublicFormNotificationController;
+use App\Models\ContentArticle;
 use App\Models\Empresa;
 use App\Models\User;
+use App\Services\ContentManagement\ContentAccessService;
 use App\Services\Seo\SeoPropertyConfigurationService;
 use Illuminate\Support\Facades\Route;
 
@@ -93,6 +96,26 @@ Route::middleware([
     Route::get('/admin/seo/{empresa}', function (Empresa $empresa) {
         return view('admin.seo.empresa-dashboard', compact('empresa'));
     })->name('admin.seo.empresa-dashboard');
+
+    Route::view('/admin/content-management', 'admin.content-management.index')
+        ->name('admin.content-management.index');
+
+    Route::view('/admin/content-management/imports', 'admin.content-management.imports')
+        ->name('admin.content-management.imports');
+
+    Route::get('/admin/content-management/articles/{article}', function (ContentArticle $article, ContentAccessService $accessService) {
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+
+        $article->loadMissing('contentImport.empresa');
+
+        abort_unless($accessService->canAccessArticle($user, $article), 403);
+
+        return view('admin.content-management.show', compact('article'));
+    })->name('admin.content-management.articles.show');
+
+    Route::get('/admin/content-management/articles/{article}/files/{file}/download', ContentArticleFileDownloadController::class)
+        ->name('admin.content-management.articles.files.download');
 
     Route::get('/google/connect', [GoogleOAuthController::class, 'connect']);
     Route::get('/google/callback', [GoogleOAuthController::class, 'callback']);

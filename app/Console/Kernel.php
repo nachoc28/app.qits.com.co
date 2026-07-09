@@ -24,6 +24,11 @@ class Kernel extends ConsoleKernel
             ->command('integration-security:prune --chunk=1000')
             ->dailyAt('03:10')
             ->withoutOverlapping();
+
+        $schedule
+            ->command('content-management:prune-temp-imports')
+            ->cron((string) config('content_management.xlsx_import.prune_schedule_cron', '20 3 * * *'))
+            ->withoutOverlapping();
     }
 
     /**

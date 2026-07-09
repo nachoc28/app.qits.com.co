@@ -146,6 +146,25 @@ class Empresa extends Model
         return $this->hasMany(SeoUtmConversion::class);
     }
 
+    // —— Módulo Gestión de Contenidos ————————————————————————————————————————————————
+
+    public function contentImports()
+    {
+        return $this->hasMany(ContentImport::class);
+    }
+
+    public function contentArticles()
+    {
+        return $this->hasManyThrough(
+            ContentArticle::class,
+            ContentImport::class,
+            'empresa_id',
+            'content_import_id',
+            'id',
+            'id'
+        );
+    }
+
     /** Scopes */
     public function scopeNombreLike(Builder $q, string $term): Builder
     {

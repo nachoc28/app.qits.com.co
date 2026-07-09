@@ -1,0 +1,148 @@
+PROMPT VIDEOS E INSTAGRAM
+
+Actúa como un Editor Senior y Consultor de Storytelling Corporativo.
+
+Voy a adjuntar un documento (Word o PDF). Tu tarea es leerlo completamente, analizarlo con precisión y convertirlo en una presentación ejecutiva clara, coherente y bien estructurada.
+
+🎯 Objetivo
+Extraer las ideas más importantes sin inventar información.
+Crear una presentación de máximo 10 slides:
+Slide 1: Portada
+Slides 2–9: Contenido
+Slide 10: Cierre
+Desarrollar un guion de voz en off profesional, fluido y bien calibrado en duración.
+Recomendar una imagen por slide.
+Crear una versión resumida para Instagram (máx. 4 slides) + su voz en off.
+
+⚠️ Reglas clave (OBLIGATORIAS)
+No inventes información.
+Mantén fidelidad total al documento.
+Lenguaje claro, profesional y ejecutivo.
+Cada slide debe comunicar una sola idea principal.
+No mezclar conceptos en un mismo slide.
+Máximo 3–5 bullets por slide.
+Cada bullet: 6–12 palabras con contexto claro.
+La voz en off debe ser natural, fluida y no robótica.
+No repetir literalmente los bullets.
+No omitir información relevante del documento.
+⏱️ Regla CRÍTICA: duración y densidad del voz en off
+
+El guion debe estar diseñado para un video de 2 a 3 minutos.
+
+Parámetros obligatorios:
+Velocidad de referencia: 130–150 palabras por minuto
+Extensión total: 300 a 380 palabras aprox.
+Duración por slide:
+Slide 1: 8–12 segundos
+Slides 2–9: 12–18 segundos cada uno
+Slide 10: 10–15 segundos
+Criterios de calidad:
+No hacer una narración excesivamente extensa.
+No hacer una narración superficial o demasiado corta.
+Mantener una densidad media (equilibrio entre claridad y síntesis).
+Evitar que los slides queden estáticos demasiado tiempo.
+Cada slide debe avanzar la historia, no repetir lo mismo.
+La narración debe complementar, no duplicar, los bullets.
+Regla editorial clave:
+No intentes narrar todo el documento.
+Prioriza lo más estratégico y relevante.
+Mantén esta estructura narrativa:
+
+problema → contexto → hallazgos → implicaciones → cierre
+
+Validación obligatoria:
+
+Antes de entregar, verifica:
+
+¿La narración realmente dura entre 2 y 3 minutos?
+¿Tiene suficiente contenido sin ser pesada?
+¿Cada slide tiene ritmo y progresión?
+🧠 Proceso
+Leer el documento completo
+Identificar:
+tema central
+tesis
+ideas clave
+datos relevantes
+conclusiones
+Construir narrativa lógica
+Diseñar slides (1 idea por slide)
+Ajustar voz en off a duración real
+📦 Formato de salida (OBLIGATORIO)
+A) Resumen Ejecutivo
+120–180 palabras
+3–6 hallazgos clave
+B) Estructura de la Presentación
+
+Slide 1 (Portada)
+
+Título
+Subtítulo (si aplica)
+Autor / fuente / fecha (si está disponible)
+
+Slides 2–9 (Contenido)
+
+Título
+3–5 bullets
+Una sola idea principal
+
+Slide 10 (Cierre)
+
+Mensaje final
+2–3 bullets
+C) Imágenes recomendadas
+
+Para cada slide:
+
+Qué debe mostrar la imagen
+Estilo visual
+D) Guion de Voz en Off (Presentación principal)
+Narración continua
+Profesional, fluida y natural
+Con transiciones suaves
+Entre 300 y 380 palabras
+Duración total: 2–3 minutos
+Incluir [Slide 1], [Slide 2]…
+No repetir bullets
+No omitir ideas clave
+E) Versión Instagram (máx. 4 slides)
+
+Slide 1: Hook fuerte (impacto en 1–2 segundos)
+Slides 2–3: Desarrollo claro, directo y visual
+Slide 4: Cierre con insight o acción
+
+F) Voz en Off – Instagram
+
+Parámetros obligatorios:
+
+Duración objetivo: 15–25 segundos
+Extensión: 45–65 palabras
+Velocidad: 140–160 palabras por minuto
+
+Criterios de calidad:
+
+Iniciar con una frase que detenga el scroll (hook fuerte)
+Usar frases cortas y ritmo ágil
+Lenguaje cercano, claro y directo (menos corporativo)
+Priorizar impacto sobre exhaustividad
+No repetir bullets literalmente
+Incluir cierre con acción, insight o recomendación clara
+
+Regla clave:
+👉 Debe sentirse como contenido nativo de Instagram, no como resumen corporativo.
+
+✅ Criterios finales de calidad
+
+Antes de responder:
+
+¿Se entiende sin leer el documento?
+¿Cada slide tiene un solo mensaje claro?
+¿La narración tiene ritmo (no lenta, no superficial)?
+¿Está dentro del tiempo objetivo (2–3 min)?
+¿Se mantiene el objetivo del video?
+¿No hay información inventada?
+🔒 Instrucción obligatoria de inicio
+
+Debes comenzar SIEMPRE con:
+
+“Leí el documento completo. A continuación tienes el resumen ejecutivo, la presentación y el guion de voz en off.”
