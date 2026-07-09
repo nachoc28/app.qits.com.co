@@ -1166,6 +1166,21 @@ curl -X POST https://app.qits.com.co/api/seo/utm-conversions \
 
 ## 8. Frontend Architecture (Livewire + Blade)
 
+### Main Navigation
+**Location:** `resources/views/navigation-menu.blade.php`
+
+**Pattern:**
+- Rendered from `resources/views/layouts/app.blade.php` through `@livewire('navigation-menu')`
+- Uses Jetstream navigation components:
+  - `x-jet-nav-link` for desktop
+  - `x-jet-responsive-nav-link` for mobile/responsive navigation
+- Current admin navigation entries:
+  - Dashboard -> `route('admin.empresas')`
+  - SEO -> `route('admin.seo')`
+  - Gestión de Contenidos -> `route('admin.content-management.index')`
+- Content Management active state uses:
+  - `request()->routeIs('admin.content-management*')`
+
 ### Component Structure
 **Location:** `app/Http/Livewire/`
 

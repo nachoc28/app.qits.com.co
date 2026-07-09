@@ -674,3 +674,36 @@
 - Result:
   - `OK (9 tests, 33 assertions)` for the delivery/publication suite
   - `OK (83 tests, 292 assertions)` for the full Content Management feature suite
+
+## 2026-07-09 (content management navigation integration)
+
+### Context
+- Scope limited to exposing the implemented Content Management module from the existing application navigation.
+- No module routes or functional behavior were changed.
+
+### Changes made
+- Updated the real Jetstream navigation view:
+  - `resources/views/navigation-menu.blade.php`
+- Added desktop navigation link:
+  - `Gestión de Contenidos`
+  - `route('admin.content-management.index')`
+- Added responsive/mobile navigation link using the same Jetstream responsive-nav pattern.
+- Fixed the existing responsive Dashboard/SEO block so Dashboard and SEO render as separate responsive links.
+- Added automated tests:
+  - `tests/Feature/ContentManagement/ContentManagementNavigationTest.php`
+- Updated technical documentation:
+  - `ARCHITECTURE.md`
+  - `LOG.md`
+
+### Active state rule
+- Content Management navigation is active for:
+  - `admin.content-management.index`
+  - any `admin.content-management*` route
+
+### Test execution
+- Executed:
+  - `php vendor/bin/phpunit tests/Feature/ContentManagement/ContentManagementNavigationTest.php`
+  - `php vendor/bin/phpunit tests/Feature/ContentManagement`
+- Result:
+  - `OK (3 tests, 15 assertions)` for the navigation suite
+  - `OK (86 tests, 307 assertions)` for the full Content Management feature suite
