@@ -14,6 +14,30 @@
 - `.gitignore` blocks `.env.*` files by default and allows only safe examples such as `.env.example` and `.env.testing.example`.
 - If a real key is ever committed, remove it from tracking immediately, rotate affected environments after confirming scope, and plan history cleanup separately.
 
+## Security Note - APP_KEY Data Re-encryption
+
+- Laravel encryption uses `config/app.php` cipher `AES-256-CBC`.
+- The command `security:reencrypt-app-key-data` prepares encrypted database values for an `APP_KEY` rotation without changing `.env` or generating a key.
+- The command is dry-run by default and requires `--apply` to persist changes.
+- The new key must be supplied outside command history through one of:
+  - temporary environment variable, default name `QITS_NEW_APP_KEY`
+  - private file outside the repository via `--new-key-file`
+- The source/decrypt key normally comes from the current runtime `APP_KEY`; rollback or advanced recovery can override it through:
+  - temporary environment variable via `--source-key-env`
+  - private file outside the repository via `--source-key-file`
+- The command migrates only these known APP_KEY-encrypted values:
+  - `form_notification_public_links.token_encrypted`
+  - `empresa_whatsapp_settings.whatsapp_access_token`
+  - `empresa_integrations.meta_json.google_refresh_token_encrypted`
+- The command uses explicit Laravel encrypters for old/new keys and raw Query Builder updates. It intentionally avoids normal Eloquent assignment for `whatsapp_access_token` because that model has an `encrypted` cast tied to the currently active app key.
+- Production execution requires `--confirm-production`; this is separate from `--apply`.
+- Apply mode runs inside a single DB transaction and aborts on the first decrypt/encrypt/verification failure. It logs counts and technical table/id/field context only, never plaintext.
+- Rollback strategy:
+  - take a database backup before apply mode
+  - do not activate the new `APP_KEY` until dry-run and apply counts are confirmed
+  - if rollback is required before activation, restore the backup or run the inverse process with `--source-key-env` / `--source-key-file` pointing to the new key and `QITS_NEW_APP_KEY` pointing to the old key
+  - after activation, keep the old key secured temporarily until post-rotation validation and rollback window close
+
 ## 0. System Snapshot (AI Context)
 
 **Current State (as of 2026-07-09):**

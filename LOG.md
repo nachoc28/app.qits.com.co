@@ -1,5 +1,66 @@
 # LOG
 
+## 2026-07-09 (security incident - production APP_KEY re-encryption tooling)
+
+### Context
+- The exposed Laravel `APP_KEY` was confirmed by operations to match the effective production key.
+- Existing encrypted production data was validated as currently readable before this phase:
+  - `form_notification_public_links.token_encrypted`
+  - `empresa_whatsapp_settings.whatsapp_access_token`
+  - `empresa_integrations.meta_json.google_refresh_token_encrypted`
+- Scope limited to creating a safe, auditable re-encryption tool before activating a new key.
+- Production `APP_KEY` was not changed.
+- No `php artisan key:generate` was executed.
+- Git history cleanup was not performed.
+- No secret values or plaintext were documented.
+
+### Changes made
+- Added Artisan command:
+  - `app/Console/Commands/ReencryptAppKeyEncryptedData.php`
+- Added automated tests:
+  - `tests/Feature/Security/ReencryptAppKeyEncryptedDataCommandTest.php`
+- Updated testing bootstrap:
+  - `tests/CreatesApplication.php`
+  - allows explicit SQLite testing override to skip MySQL schema provisioning when a runtime supports it; default project testing remains MySQL-based.
+- Updated technical documentation:
+  - `ARCHITECTURE.md`
+
+### Command behavior
+- Command:
+  - `security:reencrypt-app-key-data`
+- Dry-run is the default.
+- Apply mode requires:
+  - `--apply`
+- Production execution requires:
+  - `--confirm-production`
+- New key input is external to repository and command history:
+  - temporary env var `QITS_NEW_APP_KEY` by default
+  - or private file outside the repository with `--new-key-file`
+- Source/decrypt key input defaults to the current runtime `APP_KEY`, but can be overridden for rollback with:
+  - `--source-key-env`
+  - `--source-key-file`
+- The command uses explicit old/new Laravel encrypters and raw DB writes to avoid accidental Eloquent encrypted-cast re-encryption with the active app key.
+- Apply mode runs in one DB transaction and aborts on any decrypt/encrypt/verification failure.
+- Output and logs include counts and technical table/id/field context only; no plaintext is printed.
+
+### Validation
+- Executed:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\Security\ReencryptAppKeyEncryptedDataCommandTest.php`
+- Result:
+  - `OK (7 tests, 30 assertions)`
+- Local environment notes:
+  - MySQL had to be started locally before DB-backed tests could run.
+  - PHP 8.1 has `pdo_mysql`.
+  - PHP 8.1 does not currently have `pdo_sqlite`.
+  - PHP startup still warns about missing `oci8_12c` and `pdo_firebird`.
+
+### Rollback guidance
+- Take a database backup before running apply mode in production.
+- Do not activate the new `APP_KEY` until dry-run and apply counts are reviewed.
+- If rollback is needed before activation, restore the backup or run the inverse re-encryption with the old/new key roles swapped through the source-key options.
+- Do not rely on plaintext exports for rollback.
+- Keep the old key secured until post-rotation validation and rollback window are closed.
+
 ## 2026-07-09 (security incident - exposed testing APP_KEY)
 
 ### Context

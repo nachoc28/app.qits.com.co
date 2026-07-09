@@ -47,6 +47,10 @@ trait CreatesApplication
             return;
         }
 
+        if ($this->readEnvironmentValue('DB_CONNECTION') === 'sqlite') {
+            return;
+        }
+
         $baseDatabase = (string) $this->readEnvironmentValue('DB_DATABASE', 'qits_app_testing');
 
         if (! str_starts_with($baseDatabase, 'qits_app_testing')) {
