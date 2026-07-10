@@ -1,15 +1,36 @@
 <div class="space-y-6">
-    @if (session()->has('content_objective_success'))
-        <div class="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 shadow-sm">
-            {{ session('content_objective_success') }}
-        </div>
-    @endif
+    <nav
+        class="sticky top-0 z-20 -mx-4 border-y border-emerald-100 bg-white/95 px-4 py-3 shadow-sm backdrop-blur sm:mx-0 sm:rounded-2xl sm:border"
+        aria-label="Navegacion del flujo de gestion de contenidos"
+    >
+        <div class="flex gap-2 overflow-x-auto pb-1">
+            @foreach($stepperSteps as $index => $stepperStep)
+                @php
+                    $stepperThemeClass = match ($stepperStep['theme']) {
+                        'emerald' => 'border-emerald-200 bg-emerald-50 text-emerald-800',
+                        'blue' => 'border-blue-200 bg-blue-50 text-blue-800',
+                        'amber' => 'border-amber-200 bg-amber-50 text-amber-800',
+                        default => 'border-slate-200 bg-slate-50 text-slate-700',
+                    };
+                @endphp
 
-    @if ($templateConfigurationMessage)
-        <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-sm">
-            {{ $templateConfigurationMessage }}
+                <a
+                    href="#{{ $stepperStep['target'] }}"
+                    class="group flex min-w-max items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2 text-left text-sm shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                >
+                    <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-xs font-bold text-white">
+                        {{ $index + 1 }}
+                    </span>
+                    <span class="flex flex-col leading-tight">
+                        <span class="font-semibold text-gray-900">{{ $stepperStep['label'] }}</span>
+                        <span class="mt-1 inline-flex w-fit items-center rounded-full border px-2 py-0.5 text-xs font-semibold {{ $stepperThemeClass }}">
+                            <span class="mr-1" aria-hidden="true">&bull;</span>{{ $stepperStep['status'] }}
+                        </span>
+                    </span>
+                </a>
+            @endforeach
         </div>
-    @endif
+    </nav>
 
     <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -58,19 +79,40 @@
         </div>
     </div>
 
-    <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
+    <div id="content-step-objective" class="scroll-mt-32 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
+        @php
+            $objectiveStatus = optional($objectiveStep)->step_status;
+            $objectiveBadgeClass = match ($objectiveStatus) {
+                \App\Models\ContentArticleStep::STATUS_READY => 'border-emerald-300 bg-emerald-50 text-emerald-800',
+                \App\Models\ContentArticleStep::STATUS_IN_PROGRESS => 'border-blue-300 bg-blue-50 text-blue-800',
+                default => 'border-slate-300 bg-slate-50 text-slate-700',
+            };
+        @endphp
+
         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
+            <div class="border-l-4 border-emerald-500 pl-4 [&>h3]:!font-bold [&>h3]:!tracking-tight [&>h3]:!text-emerald-800">
                 <h3 class="text-lg font-semibold text-gray-900">Paso 1 &middot; Definir objetivo y público</h3>
                 <p class="mt-1 text-sm text-gray-500">
                     Genera el primer prompt, registra los resultados refinados y marca el paso como listo cuando ambos campos estén completos.
                 </p>
             </div>
 
-            <span class="inline-flex w-fit rounded-full border border-gray-200 bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-800">
+            <span class="inline-flex w-fit items-center rounded-full border px-3 py-1.5 text-sm font-semibold leading-none shadow-sm {{ $objectiveBadgeClass }}">
                 Estado: {{ \App\Support\ContentManagementLabels::stepStatus(optional($objectiveStep)->step_status) }}
             </span>
         </div>
+
+        @if (session()->has('content_objective_success'))
+            <div class="mt-5 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                <span class="font-semibold">Exito:</span> {{ session('content_objective_success') }}
+            </div>
+        @endif
+
+        @if ($templateConfigurationMessage)
+            <div class="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <span class="font-semibold">Error:</span> {{ $templateConfigurationMessage }}
+            </div>
+        @endif
 
         <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.95fr)]">
             <div class="space-y-6">
@@ -106,6 +148,18 @@
                         readonly
                         class="mt-4 w-full rounded-xl border-gray-300 bg-gray-50 text-sm text-gray-800 shadow-sm focus:border-gray-300 focus:ring-0"
                     >{{ optional($selectedGeneration)->final_prompt_text ?: 'Todavia no existe ninguna generacion para este articulo.' }}</textarea>
+
+                    <div class="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <p class="font-semibold">GPT recomendado</p>
+                                <p class="mt-1 font-mono text-sm font-semibold text-blue-800">@consultormarketingdigital</p>
+                            </div>
+                            <p class="max-w-xl text-blue-800">
+                                Abre este GPT en ChatGPT, pega el prompt generado y ejecuta la consulta.
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="rounded-xl border border-gray-200 bg-gray-50 p-4">
@@ -169,10 +223,6 @@
 
                         <dl class="mt-4 space-y-3 text-sm text-gray-700">
                             <div class="flex items-start justify-between gap-4">
-                                <dt class="font-medium text-gray-600">Estado</dt>
-                                <dd class="text-right">{{ \App\Support\ContentManagementLabels::stepStatus($objectiveStep->step_status) }}</dd>
-                            </div>
-                            <div class="flex items-start justify-between gap-4">
                                 <dt class="font-medium text-gray-600">Marcado por</dt>
                                 <dd class="text-right">{{ optional($objectiveStep->readyBy)->name ?: '-' }}</dd>
                             </div>
@@ -184,9 +234,12 @@
                     </div>
                 @endif
 
-                <div>
-                    <h4 class="text-sm font-semibold text-gray-900">Historial de generaciones</h4>
-                    <p class="mt-1 text-sm text-gray-500">Cada clic en generar o regenerar crea una fila nueva.</p>
+                <details class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                    <summary class="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-gray-900 marker:hidden">
+                        <span>Historial de generaciones ({{ $generations->count() }})</span>
+                        <span class="rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs font-semibold text-gray-600">Abrir</span>
+                    </summary>
+                    <p class="mt-2 text-sm text-gray-500">Cada clic en generar o regenerar crea una fila nueva.</p>
 
                     <div class="mt-4 space-y-3">
                         @forelse($generations as $generation)
@@ -220,24 +273,24 @@
                             </div>
                         @endforelse
                     </div>
-                </div>
+                </details>
             </div>
         </div>
     </div>
 
-    <div>
+    <div id="content-step-drafting" class="scroll-mt-32">
         @livewire(\App\Http\Livewire\Admin\ContentManagement\ContentArticleDraftingPanel::class, ['articleId' => $article->id], key('content-drafting-' . $article->id))
     </div>
 
-    <div>
+    <div id="content-step-video-instagram" class="scroll-mt-32">
         @livewire(\App\Http\Livewire\Admin\ContentManagement\ContentArticleVideoInstagramPanel::class, ['articleId' => $article->id], key('content-video-instagram-' . $article->id))
     </div>
 
-    <div>
+    <div id="content-step-final-file" class="scroll-mt-32">
         @livewire(\App\Http\Livewire\Admin\ContentManagement\ContentArticleFinalFilePanel::class, ['articleId' => $article->id], key('content-final-file-' . $article->id))
     </div>
 
-    <div>
+    <div id="content-step-release" class="scroll-mt-32">
         @livewire(\App\Http\Livewire\Admin\ContentManagement\ContentArticleDeliveryPublicationPanel::class, ['articleId' => $article->id], key('content-delivery-publication-' . $article->id))
     </div>
 </div>

@@ -7,18 +7,18 @@
 
     <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-                <h3 class="text-base font-semibold text-gray-900">Archivos finales</h3>
+            <div class="border-l-4 border-emerald-500 pl-4">
+                <h3 class="text-lg font-bold tracking-tight text-emerald-800">Archivos finales</h3>
                 <p class="mt-1 text-sm text-gray-500">
                     Carga manual privada del archivo final del articulo en versiones consecutivas.
                 </p>
             </div>
 
-            <div class="flex flex-wrap gap-2 text-xs">
-                <span class="inline-flex rounded-full border border-emerald-200 bg-emerald-100 px-3 py-1 font-semibold text-emerald-800">
+            <div class="flex flex-wrap gap-2">
+                <span class="inline-flex w-fit items-center rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-sm font-semibold leading-none text-emerald-800 shadow-sm">
                     Etapa: {{ \App\Support\ContentManagementLabels::operationalStage($article->operational_stage) }}
                 </span>
-                <span class="inline-flex rounded-full border border-gray-200 bg-gray-100 px-3 py-1 font-semibold text-gray-800">
+                <span class="inline-flex w-fit items-center rounded-full border border-slate-300 bg-slate-50 px-3 py-1.5 text-sm font-semibold leading-none text-slate-700 shadow-sm">
                     Estado principal: {{ \App\Support\ContentManagementLabels::mainStatus($article->main_status) }}
                 </span>
             </div>

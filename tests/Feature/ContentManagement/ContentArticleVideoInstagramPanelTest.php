@@ -17,6 +17,7 @@ use App\Services\ContentManagement\ContentVideoInstagramPromptService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
+use ReflectionClass;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
@@ -219,7 +220,8 @@ class ContentArticleVideoInstagramPanelTest extends TestCase
         Livewire::actingAs($user)
             ->test(ContentArticleVideoInstagramPanel::class, ['articleId' => $article->id])
             ->call('markVideoInstagramReady')
-            ->assertHasErrors(['video_instagram']);
+            ->assertHasErrors(['video_instagram'])
+            ->assertSee('Error:');
 
         $step = $this->step($article->fresh(), ContentArticleStep::TYPE_VIDEO_INSTAGRAM);
         $this->assertSame(ContentArticleStep::STATUS_PENDING, $step->step_status);
@@ -251,6 +253,20 @@ class ContentArticleVideoInstagramPanelTest extends TestCase
         $this->assertNotNull($step->ready_at);
         $this->assertSame(ContentArticle::STAGE_FINAL_FILE, $article->operational_stage);
         $this->assertSame(ContentArticle::MAIN_STATUS_PROCESSING, $article->main_status);
+    }
+
+    public function test_video_instagram_listener_uses_livewire_2_listeners_array(): void
+    {
+        $reflection = new ReflectionClass(ContentArticleVideoInstagramPanel::class);
+        $property = $reflection->getProperty('listeners');
+        $property->setAccessible(true);
+
+        $component = app(ContentArticleVideoInstagramPanel::class);
+
+        $this->assertSame(
+            ['contentDraftingUpdated' => 'refreshFromDrafting'],
+            $property->getValue($component)
+        );
     }
 
     private function createVideoInstagramTemplateVersion(

@@ -14,11 +14,24 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class ContentArticleDraftingPanel extends Component
 {
+    protected $listeners = [
+        'contentObjectiveUpdated' => 'refreshFromObjective',
+    ];
+
     /** @var int */
     public $articleId;
 
     /** @var int|null */
     public $selectedGenerationId = null;
+
+    public function refreshFromObjective(int $articleId): void
+    {
+        if ((int) $articleId !== (int) $this->articleId) {
+            return;
+        }
+
+        $this->resetErrorBag('drafting');
+    }
 
     public function mount(int $articleId, ContentAccessService $accessService): void
     {
@@ -46,6 +59,10 @@ class ContentArticleDraftingPanel extends Component
         /** @var User $user */
         $user = auth()->user();
 
+        $wasRegeneration = $article->generations()
+            ->where('step_type', ContentArticleStep::TYPE_DRAFTING)
+            ->exists();
+
         try {
             $generation = $promptService->generate($article, $user);
         } catch (RuntimeException $e) {
@@ -55,7 +72,8 @@ class ContentArticleDraftingPanel extends Component
         }
 
         $this->selectedGenerationId = $generation->id;
-        session()->flash('content_drafting_success', 'Prompt 2 generado correctamente.');
+        $this->emit('contentDraftingUpdated', (int) $this->articleId);
+        session()->flash('content_drafting_success', $wasRegeneration ? 'Prompt 2 regenerado.' : 'Prompt 2 generado.');
     }
 
     public function markDraftingReady(
@@ -72,7 +90,8 @@ class ContentArticleDraftingPanel extends Component
             ]);
         }
 
-        session()->flash('content_drafting_success', 'Paso Redacción del artículo marcado como listo.');
+        $this->emit('contentDraftingUpdated', (int) $this->articleId);
+        session()->flash('content_drafting_success', 'Paso 2 marcado como listo.');
     }
 
     public function viewGeneration(int $generationId, ContentAccessService $accessService): void

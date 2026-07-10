@@ -1,5 +1,168 @@
 # LOG
 
+## 2026-07-10 (content management collapsible prompt histories)
+
+### Context
+- Scope limited to making prompt generation histories collapsible in the Content Management operational detail.
+- No business logic, services, persistence, states, Livewire events, sticky stepper, GPT recommended hints or flow rules were changed.
+
+### Changes made
+- Wrapped the Prompt 1, Prompt 2 and Prompt 3 generation histories in native `<details>/<summary>` blocks.
+- Histories are closed by default and keep all existing generation information and actions available when expanded.
+- Summary labels show the real generation count for each step:
+  - `Historial de generaciones (N)`
+- Kept empty-history messages visible inside the collapsible block when no generations exist.
+- Extended detail tests to cover counts for Prompt 1, Prompt 2 and Prompt 3, native collapsible markup and existing prompt actions.
+
+### Test execution
+- Executed:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement`
+- Result:
+  - `OK (97 tests, 421 assertions)`
+- Environment note:
+  - PHP startup still warns about missing `oci8_12c` and `pdo_firebird`, but tests pass.
+
+## 2026-07-10 (content management sticky operational stepper)
+
+### Context
+- Scope limited to a sticky stepper navigation in the Content Management operational detail.
+- No business logic, services, persistence, internal states, Livewire events, master templates, GPT recommended hints or histories were changed.
+
+### Changes made
+- Added a sticky anchor stepper to the operational detail.
+- Stepper entries:
+  - Objetivo y público
+  - Redacción
+  - Video e Instagram
+  - Archivo final
+  - Entrega / Publicación
+- Added stable section anchors:
+  - `content-step-objective`
+  - `content-step-drafting`
+  - `content-step-video-instagram`
+  - `content-step-final-file`
+  - `content-step-release`
+- Added scroll offset classes so anchored navigation does not hide card starts under the sticky bar.
+- Stepper state is derived from existing article, step, file, delivery and publication data.
+- Updated detail tests to assert sticky navigation, anchors, Spanish visible states and responsive horizontal scrolling.
+- Updated architecture documentation with the visual sticky stepper pattern.
+
+### Test execution
+- Executed:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement`
+- Result:
+  - `OK (97 tests, 414 assertions)`
+- Environment note:
+  - PHP startup still warns about missing `oci8_12c` and `pdo_firebird`, but tests pass.
+
+## 2026-07-10 (content management recommended GPT hints)
+
+### Context
+- Scope limited to visual integration of recommended GPT names in each Content Management operational step.
+- No business logic, services, persistence, states, events, master templates, navigation or histories were changed.
+
+### Changes made
+- Added compact recommended-GPT hint near the generated prompt in Step 1:
+  - `@consultormarketingdigital`
+- Added compact recommended-GPT hint near the generated prompt in Step 2:
+  - `@redactorSEOGutenber`
+- Added compact recommended-GPT hint near the generated prompt in Step 3:
+  - `@StorytellingCorporativo`
+- Step 3 includes the required operator sequence:
+  - open the GPT in ChatGPT
+  - attach the final Word/PDF document first
+  - paste the generated prompt
+  - execute the query
+- No URLs were added because no URL configuration exists for these GPTs.
+- Extended detail tests to assert the three GPT names, Step 3 sequence and absence of invented links.
+
+### Test execution
+- Executed:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement`
+- Result:
+  - `OK (97 tests, 398 assertions)`
+
+## 2026-07-10 (content management detail visual hierarchy)
+
+### Context
+- Scope limited to visual hierarchy and contrast in the Content Management operational detail.
+- No business logic, services, persistence, states, Livewire events or navigation were changed.
+
+### Changes made
+- Improved header subtitle contrast in:
+  - `resources/views/admin/content-management/show.blade.php`
+- Improved title hierarchy for operational cards:
+  - Step 1
+  - Step 2
+  - Step 3
+  - final files
+  - manual delivery
+  - manual publication
+- Standardized top status badges with compact padding, stronger text contrast and Spanish labels.
+- Removed repeated step status from the inner `Estado del paso` detail block while keeping:
+  - `Marcado por`
+  - `Fecha`
+- Extended Content Management detail assertions to cover contrast classes, title hierarchy and badge styling.
+
+### Test execution
+- Executed:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement`
+- Result:
+  - `OK (97 tests, 387 assertions)`
+- Environment note:
+  - PHP startup still warns about missing `oci8_12c` and `pdo_firebird`, but tests pass.
+
+## 2026-07-10 (content management detail reactivity and local feedback)
+
+### Context
+- Production showed stale state in the Content Management article detail:
+  - Step 1 refined fields persisted correctly.
+  - Step 2 did not immediately reflect updated refined fields or objective ready state.
+  - Users had to leave the detail and reopen the article before generating Prompt 2.
+  - Success/error feedback appeared too far from the action in long scroll views.
+- Scope limited to Livewire reactivity and per-card feedback placement.
+- Business rules, templates, internal states and XLSX import were not changed.
+
+### Root cause
+- Step 1, Step 2 and Step 3 are separate Livewire child components.
+- Step 2 and Step 3 were mounted with stable keys and only refreshed when their own component received an action or the page reloaded.
+- Step 1 state changes did not emit any event that Step 2 listened to, so Step 2 availability stayed stale in the browser.
+- Step feedback used session flashes rendered above the card, which made messages hard to see on long detail pages.
+
+### Changes made
+- Updated Step 1 component:
+  - `app/Http/Livewire/Admin/ContentManagement/ContentArticleObjectiveDetail.php`
+  - emits `contentObjectiveUpdated` after relevant Step 1 changes
+- Updated Step 2 component:
+  - `app/Http/Livewire/Admin/ContentManagement/ContentArticleDraftingPanel.php`
+  - listens to `contentObjectiveUpdated` via Livewire 2 `$listeners`
+  - re-renders from the database on objective updates
+  - emits `contentDraftingUpdated` after drafting changes
+- Updated Step 3 component:
+  - `app/Http/Livewire/Admin/ContentManagement/ContentArticleVideoInstagramPanel.php`
+  - listens to `contentDraftingUpdated` via Livewire 2 `$listeners`
+- Updated card views:
+  - `resources/views/livewire/admin/content-management/content-article-objective-detail.blade.php`
+  - `resources/views/livewire/admin/content-management/content-article-drafting-panel.blade.php`
+  - `resources/views/livewire/admin/content-management/content-article-video-instagram-panel.blade.php`
+- Extended tests:
+  - `tests/Feature/ContentManagement/ContentArticleObjectiveDetailTest.php`
+  - `tests/Feature/ContentManagement/ContentArticleDraftingPanelTest.php`
+  - `tests/Feature/ContentManagement/ContentArticleVideoInstagramPanelTest.php`
+- Updated technical documentation:
+  - `ARCHITECTURE.md`
+
+### Validation
+- Executed:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement\ContentArticleObjectiveDetailTest.php tests\Feature\ContentManagement\ContentArticleDraftingPanelTest.php tests\Feature\ContentManagement\ContentArticleVideoInstagramPanelTest.php`
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement`
+- Result:
+  - `OK (11 tests, 60 assertions)`
+  - `OK (97 tests, 379 assertions)` for the full Content Management feature suite
+- Environment note:
+  - MySQL local had to be started before running DB-backed tests.
+  - PHP startup still warns about missing `oci8_12c` and `pdo_firebird`.
+
 ## 2026-07-09 (security incident - production APP_KEY re-encryption tooling)
 
 ### Context

@@ -14,11 +14,24 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class ContentArticleVideoInstagramPanel extends Component
 {
+    protected $listeners = [
+        'contentDraftingUpdated' => 'refreshFromDrafting',
+    ];
+
     /** @var int */
     public $articleId;
 
     /** @var int|null */
     public $selectedGenerationId = null;
+
+    public function refreshFromDrafting(int $articleId): void
+    {
+        if ((int) $articleId !== (int) $this->articleId) {
+            return;
+        }
+
+        $this->resetErrorBag('video_instagram');
+    }
 
     public function mount(int $articleId, ContentAccessService $accessService): void
     {
@@ -46,6 +59,10 @@ class ContentArticleVideoInstagramPanel extends Component
         /** @var User $user */
         $user = auth()->user();
 
+        $wasRegeneration = $article->generations()
+            ->where('step_type', ContentArticleStep::TYPE_VIDEO_INSTAGRAM)
+            ->exists();
+
         try {
             $generation = $promptService->generate($article, $user);
         } catch (RuntimeException $e) {
@@ -55,7 +72,7 @@ class ContentArticleVideoInstagramPanel extends Component
         }
 
         $this->selectedGenerationId = $generation->id;
-        session()->flash('content_video_instagram_success', 'Prompt 3 generado correctamente.');
+        session()->flash('content_video_instagram_success', $wasRegeneration ? 'Prompt 3 regenerado.' : 'Prompt 3 generado.');
     }
 
     public function markVideoInstagramReady(
@@ -72,7 +89,7 @@ class ContentArticleVideoInstagramPanel extends Component
             ]);
         }
 
-        session()->flash('content_video_instagram_success', 'Paso Video e Instagram marcado como listo.');
+        session()->flash('content_video_instagram_success', 'Paso 3 marcado como listo.');
     }
 
     public function viewGeneration(int $generationId, ContentAccessService $accessService): void

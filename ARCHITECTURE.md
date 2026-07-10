@@ -1,6 +1,6 @@
 # QITS - Project Architecture
 
-**Last Updated:** 2026-07-09  
+**Last Updated:** 2026-07-10  
 **Version:** 1.0  
 **Stack:** Laravel 8, Jetstream, Livewire, Tailwind CSS, MySQL  
 
@@ -37,6 +37,17 @@
   - do not activate the new `APP_KEY` until dry-run and apply counts are confirmed
   - if rollback is required before activation, restore the backup or run the inverse process with `--source-key-env` / `--source-key-file` pointing to the new key and `QITS_NEW_APP_KEY` pointing to the old key
   - after activation, keep the old key secured temporarily until post-rotation validation and rollback window close
+
+## Content Management - Livewire Component Reactivity
+
+- The operational article detail keeps separate Livewire 2 components for each flow step.
+- Cross-step refresh uses Livewire 2 event listeners, not Livewire 3 attributes:
+  - Step 1 emits `contentObjectiveUpdated` after Prompt 1 generation, refined-result save and objective ready transitions.
+  - Step 2 listens through `$listeners` and re-renders from the database so availability reflects current refined fields, objective step status, `ready_at` and `ready_by`.
+- Step 2 emits `contentDraftingUpdated` after Prompt 2 generation and drafting ready transitions.
+- Step 3 listens through `$listeners` and re-renders from the database so its blocking state reflects current drafting state.
+- Step cards render action success/error feedback inside the card where the action occurred, avoiding global alerts at the top of long scrolling views.
+- The operational detail includes a sticky anchor stepper rendered by the parent Livewire component. It uses stable section IDs for Step 1, Step 2, Step 3, final files and delivery/publication; it does not behave as tabs and does not alter component state.
 
 ## 0. System Snapshot (AI Context)
 

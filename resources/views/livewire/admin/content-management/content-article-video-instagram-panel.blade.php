@@ -1,31 +1,38 @@
 <div class="space-y-6">
-    @if (session()->has('content_video_instagram_success'))
-        <div class="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 shadow-sm">
-            {{ session('content_video_instagram_success') }}
-        </div>
-    @endif
-
     <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
+        @php
+            $videoStatus = optional($videoStep)->step_status;
+            $videoBadgeClass = ! $availability['allowed']
+                ? 'border-amber-300 bg-amber-50 text-amber-800'
+                : match ($videoStatus) {
+                    \App\Models\ContentArticleStep::STATUS_READY => 'border-emerald-300 bg-emerald-50 text-emerald-800',
+                    \App\Models\ContentArticleStep::STATUS_IN_PROGRESS => 'border-blue-300 bg-blue-50 text-blue-800',
+                    default => 'border-slate-300 bg-slate-50 text-slate-700',
+                };
+            $videoBadgeLabel = ! $availability['allowed']
+                ? 'Bloqueado'
+                : \App\Support\ContentManagementLabels::stepStatus(optional($videoStep)->step_status);
+        @endphp
         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
+            <div class="border-l-4 border-blue-500 pl-4 [&>h3]:!font-bold [&>h3]:!tracking-tight [&>h3]:!text-blue-800">
                 <h3 class="text-lg font-semibold text-gray-900">Paso 3 &middot; Crear contenido para video e Instagram</h3>
                 <p class="mt-1 text-sm text-gray-500">
                     Prepara el prompt para guion de video y piezas de Instagram a partir del documento final del articulo.
                 </p>
             </div>
 
-            <div class="flex flex-wrap gap-2 text-xs">
-                @if(! $availability['allowed'])
-                    <span class="inline-flex rounded-full border border-amber-200 bg-amber-100 px-3 py-1 font-semibold text-amber-800">
-                        Estado: Bloqueado
-                    </span>
-                @else
-                    <span class="inline-flex rounded-full border border-pink-200 bg-pink-100 px-3 py-1 font-semibold text-pink-800">
-                        Estado: {{ \App\Support\ContentManagementLabels::stepStatus(optional($videoStep)->step_status) }}
-                    </span>
-                @endif
+            <div class="flex flex-wrap gap-2">
+                <span class="inline-flex w-fit items-center rounded-full border px-3 py-1.5 text-sm font-semibold leading-none shadow-sm {{ $videoBadgeClass }}">
+                    Estado: {{ $videoBadgeLabel }}
+                </span>
             </div>
         </div>
+
+        @if (session()->has('content_video_instagram_success'))
+            <div class="mt-5 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                <span class="font-semibold">Exito:</span> {{ session('content_video_instagram_success') }}
+            </div>
+        @endif
 
         <div class="mt-5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
             <span class="font-semibold">Antes de usar este prompt:</span> {{ $attachmentInstruction }}
@@ -39,7 +46,7 @@
 
         @error('video_instagram')
             <div class="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {{ $message }}
+                <span class="font-semibold">Error:</span> {{ $message }}
             </div>
         @enderror
 
@@ -80,6 +87,17 @@
                     >{{ optional($selectedGeneration)->final_prompt_text ?: 'Todavia no existe ninguna generacion de Video e Instagram para este articulo.' }}</textarea>
                 </div>
 
+                <div class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                    <p class="font-semibold">GPT recomendado</p>
+                    <p class="mt-1 font-mono text-sm font-semibold text-blue-800">@StorytellingCorporativo</p>
+                    <ol class="mt-3 list-decimal space-y-1 pl-5 text-blue-800">
+                        <li>Abre este GPT en ChatGPT.</li>
+                        <li>Adjunta primero el documento final del artÃ­culo en Word o PDF.</li>
+                        <li>Pega el prompt generado.</li>
+                        <li>Ejecuta la consulta.</li>
+                    </ol>
+                </div>
+
                 <div>
                     <button
                         type="button"
@@ -98,10 +116,6 @@
 
                         <dl class="mt-4 space-y-3 text-sm text-gray-700">
                             <div class="flex items-start justify-between gap-4">
-                                <dt class="font-medium text-gray-600">Estado</dt>
-                                <dd class="text-right">{{ \App\Support\ContentManagementLabels::stepStatus($videoStep->step_status) }}</dd>
-                            </div>
-                            <div class="flex items-start justify-between gap-4">
                                 <dt class="font-medium text-gray-600">Marcado por</dt>
                                 <dd class="text-right">{{ optional($videoStep->readyBy)->name ?: '-' }}</dd>
                             </div>
@@ -113,9 +127,12 @@
                     </div>
                 @endif
 
-                <div>
-                    <h4 class="text-sm font-semibold text-gray-900">Historial de generaciones</h4>
-                    <p class="mt-1 text-sm text-gray-500">Se conserva el historial completo sin sobrescritura.</p>
+                <details class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                    <summary class="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-gray-900 marker:hidden">
+                        <span>Historial de generaciones ({{ $generations->count() }})</span>
+                        <span class="rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs font-semibold text-gray-600">Abrir</span>
+                    </summary>
+                    <p class="mt-2 text-sm text-gray-500">Se conserva el historial completo sin sobrescritura.</p>
 
                     <div class="mt-4 space-y-3">
                         @forelse($generations as $generation)
@@ -149,7 +166,7 @@
                             </div>
                         @endforelse
                     </div>
-                </div>
+                </details>
             </div>
         </div>
     </div>

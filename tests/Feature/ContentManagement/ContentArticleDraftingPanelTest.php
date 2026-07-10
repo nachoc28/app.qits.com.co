@@ -20,6 +20,7 @@ use App\Services\ContentManagement\ContentDraftingPromptService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
+use ReflectionClass;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
@@ -62,6 +63,73 @@ class ContentArticleDraftingPanelTest extends TestCase
             ->test(ContentArticleDraftingPanel::class, ['articleId' => $article->id])
             ->call('generatePrompt')
             ->assertHasErrors(['drafting']);
+    }
+
+    public function test_objective_update_event_refreshes_refined_fields_without_reload(): void
+    {
+        $empresa = $this->createEmpresa('Empresa Refresh Refinados');
+        $user = $this->createUser('Administrador');
+        $article = $this->createReadyForDraftingArticle($empresa, $user);
+        $article->forceFill([
+            'refined_objective' => null,
+            'refined_target_audience' => null,
+        ])->save();
+        $this->setSiteUrl($empresa, 'https://empresa-refresh.test');
+
+        $component = Livewire::actingAs($user)
+            ->test(ContentArticleDraftingPanel::class, ['articleId' => $article->id])
+            ->assertSee('Estado: Bloqueado');
+
+        $article->forceFill([
+            'refined_objective' => 'Objetivo refinado actualizado',
+            'refined_target_audience' => 'Publico refinado actualizado',
+        ])->save();
+
+        $component
+            ->emit('contentObjectiveUpdated', $article->id)
+            ->assertDontSee('Estado: Bloqueado')
+            ->assertSee('Estado: Pendiente');
+    }
+
+    public function test_objective_ready_event_enables_drafting_without_reload(): void
+    {
+        $empresa = $this->createEmpresa('Empresa Refresh Ready');
+        $user = $this->createUser('Administrador');
+        $article = $this->createArticle($empresa, $user, [
+            'refined_objective' => 'Objetivo refinado',
+            'refined_target_audience' => 'Publico refinado',
+        ]);
+        $this->setSiteUrl($empresa, 'https://empresa-ready.test');
+        $this->createDraftingTemplateVersion(1, $this->draftingTemplateBody(), true);
+
+        $component = Livewire::actingAs($user)
+            ->test(ContentArticleDraftingPanel::class, ['articleId' => $article->id])
+            ->assertSee('Estado: Bloqueado');
+
+        $this->markObjectiveReady($article, $user);
+
+        $component
+            ->emit('contentObjectiveUpdated', $article->id)
+            ->assertDontSee('Estado: Bloqueado')
+            ->call('generatePrompt')
+            ->assertHasNoErrors()
+            ->assertSee('Prompt 2 generado.');
+
+        $this->assertSame(1, $this->draftingGenerationCount($article));
+    }
+
+    public function test_drafting_listener_uses_livewire_2_listeners_array(): void
+    {
+        $reflection = new ReflectionClass(ContentArticleDraftingPanel::class);
+        $property = $reflection->getProperty('listeners');
+        $property->setAccessible(true);
+
+        $component = app(ContentArticleDraftingPanel::class);
+
+        $this->assertSame(
+            ['contentObjectiveUpdated' => 'refreshFromObjective'],
+            $property->getValue($component)
+        );
     }
 
     public function test_blocks_if_site_url_is_missing(): void
@@ -269,7 +337,8 @@ class ContentArticleDraftingPanelTest extends TestCase
         Livewire::actingAs($user)
             ->test(ContentArticleDraftingPanel::class, ['articleId' => $article->id])
             ->call('markDraftingReady')
-            ->assertHasErrors(['drafting']);
+            ->assertHasErrors(['drafting'])
+            ->assertSee('Error:');
 
         $step = $this->step($article->fresh(), ContentArticleStep::TYPE_DRAFTING);
 

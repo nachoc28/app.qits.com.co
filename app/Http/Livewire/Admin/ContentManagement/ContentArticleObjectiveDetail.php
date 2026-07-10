@@ -77,6 +77,7 @@ class ContentArticleObjectiveDetail extends Component
 
         $this->selectedGenerationId = $generation->id;
         $this->templateConfigurationMessage = null;
+        $this->emit('contentObjectiveUpdated', (int) $this->articleId);
         session()->flash('content_objective_success', 'Prompt 1 generado correctamente.');
     }
 
@@ -97,7 +98,8 @@ class ContentArticleObjectiveDetail extends Component
 
         $this->refinedObjective = (string) ($updated->refined_objective ?? '');
         $this->refinedTargetAudience = (string) ($updated->refined_target_audience ?? '');
-        session()->flash('content_objective_success', 'Resultados refinados guardados.');
+        $this->emit('contentObjectiveUpdated', (int) $this->articleId);
+        session()->flash('content_objective_success', 'Resultados guardados.');
     }
 
     public function markObjectiveReady(
@@ -126,7 +128,8 @@ class ContentArticleObjectiveDetail extends Component
             ]);
         }
 
-        session()->flash('content_objective_success', 'Paso Objetivo y público marcado como listo.');
+        $this->emit('contentObjectiveUpdated', (int) $this->articleId);
+        session()->flash('content_objective_success', 'Paso 1 marcado como listo.');
     }
 
     public function viewGeneration(int $generationId, ContentAccessService $accessService): void
@@ -160,7 +163,134 @@ class ContentArticleObjectiveDetail extends Component
             'objectiveStep' => $objectiveStep,
             'generations' => $generations,
             'selectedGeneration' => $selectedGeneration,
+            'stepperSteps' => $this->buildStepperSteps($article),
         ]);
+    }
+
+    /**
+     * @return array<int, array{label: string, target: string, status: string, theme: string}>
+     */
+    private function buildStepperSteps(ContentArticle $article): array
+    {
+        $objectiveStep = $this->stepByType($article, ContentArticleStep::TYPE_OBJECTIVE);
+        $draftingStep = $this->stepByType($article, ContentArticleStep::TYPE_DRAFTING);
+        $videoStep = $this->stepByType($article, ContentArticleStep::TYPE_VIDEO_INSTAGRAM);
+        $objectiveStatus = $this->stepperStatusFromStep($objectiveStep, false);
+        $draftingStatus = $this->stepperStatusFromStep($draftingStep, ! $this->stepIsReady($objectiveStep));
+        $videoStatus = $this->stepperStatusFromStep($videoStep, ! $this->stepIsReady($draftingStep));
+        $finalFileStatus = $this->finalFileStepperStatus($article, $videoStep);
+        $releaseStatus = $this->releaseStepperStatus($article);
+
+        return [
+            [
+                'label' => 'Objetivo y público',
+                'target' => 'content-step-objective',
+                'status' => $objectiveStatus,
+                'theme' => $this->stepperTheme($objectiveStatus),
+            ],
+            [
+                'label' => 'Redacción',
+                'target' => 'content-step-drafting',
+                'status' => $draftingStatus,
+                'theme' => $this->stepperTheme($draftingStatus),
+            ],
+            [
+                'label' => 'Video e Instagram',
+                'target' => 'content-step-video-instagram',
+                'status' => $videoStatus,
+                'theme' => $this->stepperTheme($videoStatus),
+            ],
+            [
+                'label' => 'Archivo final',
+                'target' => 'content-step-final-file',
+                'status' => $finalFileStatus,
+                'theme' => $this->stepperTheme($finalFileStatus),
+            ],
+            [
+                'label' => 'Entrega / Publicación',
+                'target' => 'content-step-release',
+                'status' => $releaseStatus,
+                'theme' => $this->stepperTheme($releaseStatus),
+            ],
+        ];
+    }
+
+    private function stepByType(ContentArticle $article, string $stepType): ?ContentArticleStep
+    {
+        return $article->steps->firstWhere('step_type', $stepType);
+    }
+
+    private function stepIsReady(?ContentArticleStep $step): bool
+    {
+        return $step && $step->step_status === ContentArticleStep::STATUS_READY;
+    }
+
+    private function stepperStatusFromStep(?ContentArticleStep $step, bool $isBlocked): string
+    {
+        if ($isBlocked) {
+            return 'Bloqueado';
+        }
+
+        if (! $step) {
+            return 'Pendiente';
+        }
+
+        if ($step->step_status === ContentArticleStep::STATUS_READY) {
+            return 'Listo';
+        }
+
+        if ($step->step_status === ContentArticleStep::STATUS_IN_PROGRESS) {
+            return 'En proceso';
+        }
+
+        return 'Pendiente';
+    }
+
+    private function finalFileStepperStatus(ContentArticle $article, ?ContentArticleStep $videoStep): string
+    {
+        if (! $this->stepIsReady($videoStep)) {
+            return 'Bloqueado';
+        }
+
+        if ($article->files->isNotEmpty()) {
+            return 'Listo';
+        }
+
+        if ($article->operational_stage === ContentArticle::STAGE_FINAL_FILE) {
+            return 'En proceso';
+        }
+
+        return 'Pendiente';
+    }
+
+    private function releaseStepperStatus(ContentArticle $article): string
+    {
+        if ($article->published_at || $article->delivered_at) {
+            return 'Listo';
+        }
+
+        if ($article->files->isNotEmpty()) {
+            return 'Pendiente';
+        }
+
+        return 'Bloqueado';
+    }
+
+    private function stepperTheme(string $status): string
+    {
+        if ($status === 'Listo') {
+            return 'emerald';
+        }
+
+        if ($status === 'En proceso') {
+            return 'blue';
+        }
+
+        if ($status === 'Bloqueado') {
+            return 'slate';
+        }
+
+        return 'amber';
     }
 
     private function resolveArticle(ContentAccessService $accessService): ContentArticle

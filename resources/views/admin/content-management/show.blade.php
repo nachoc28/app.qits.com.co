@@ -5,7 +5,7 @@
                 <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                     Gestion de Contenidos - Detalle Operativo
                 </h2>
-                <p class="mt-1 text-sm text-gray-500">
+                <p class="mt-1 max-w-2xl rounded-lg bg-white/15 px-3 py-1.5 text-sm font-medium text-emerald-950 sm:px-0 sm:py-0 sm:bg-transparent sm:text-emerald-950">
                     Detalle operativo del articulo para avanzar los pasos habilitados del flujo de contenidos.
                 </p>
             </div>

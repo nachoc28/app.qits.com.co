@@ -14,14 +14,14 @@
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                    <h3 class="text-base font-semibold text-gray-900">Entrega manual</h3>
+                <div class="border-l-4 border-blue-500 pl-4">
+                    <h3 class="text-lg font-bold tracking-tight text-blue-800">Entrega manual</h3>
                     <p class="mt-1 text-sm text-gray-500">
                         La entrega se registra como evento manual independiente de la publicacion.
                     </p>
                 </div>
 
-                <span class="inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold {{ $article->delivered_at ? 'border-blue-200 bg-blue-100 text-blue-800' : 'border-gray-200 bg-gray-100 text-gray-700' }}">
+                <span class="inline-flex w-fit items-center rounded-full border px-3 py-1.5 text-sm font-semibold leading-none shadow-sm {{ $article->delivered_at ? 'border-blue-300 bg-blue-50 text-blue-800' : 'border-slate-300 bg-slate-50 text-slate-700' }}">
                     {{ $article->delivered_at ? 'Entregado' : 'No entregado' }}
                 </span>
             </div>
@@ -65,14 +65,14 @@
 
         <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                    <h3 class="text-base font-semibold text-gray-900">Publicacion manual</h3>
+                <div class="border-l-4 border-emerald-500 pl-4">
+                    <h3 class="text-lg font-bold tracking-tight text-emerald-800">Publicacion manual</h3>
                     <p class="mt-1 text-sm text-gray-500">
                         La publicacion se registra aparte y no depende automaticamente de la entrega.
                     </p>
                 </div>
 
-                <span class="inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold {{ $article->published_at ? 'border-green-200 bg-green-100 text-green-800' : 'border-gray-200 bg-gray-100 text-gray-700' }}">
+                <span class="inline-flex w-fit items-center rounded-full border px-3 py-1.5 text-sm font-semibold leading-none shadow-sm {{ $article->published_at ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-slate-300 bg-slate-50 text-slate-700' }}">
                     {{ $article->published_at ? 'Publicado' : 'No publicado' }}
                 </span>
             </div>

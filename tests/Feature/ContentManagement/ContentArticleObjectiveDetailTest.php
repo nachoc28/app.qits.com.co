@@ -258,15 +258,61 @@ class ContentArticleObjectiveDetailTest extends TestCase
             ->where('step_type', ContentArticleStep::TYPE_DRAFTING)
             ->update(['step_status' => ContentArticleStep::STATUS_IN_PROGRESS]);
 
+        $objectiveTemplateVersion = $this->createTemplateVersion(ContentArticleStep::TYPE_OBJECTIVE, 1);
+        $draftingTemplateVersion = $this->createTemplateVersion(ContentArticleStep::TYPE_DRAFTING, 1);
+        $videoTemplateVersion = $this->createTemplateVersion(ContentArticleStep::TYPE_VIDEO_INSTAGRAM, 1);
+
+        $this->createGeneration($article, $user, $objectiveTemplateVersion, ContentArticleStep::TYPE_OBJECTIVE, 'Prompt objetivo 1');
+        $this->createGeneration($article, $user, $draftingTemplateVersion, ContentArticleStep::TYPE_DRAFTING, 'Prompt redaccion 1');
+        $this->createGeneration($article, $user, $draftingTemplateVersion, ContentArticleStep::TYPE_DRAFTING, 'Prompt redaccion 2');
+        $this->createGeneration($article, $user, $videoTemplateVersion, ContentArticleStep::TYPE_VIDEO_INSTAGRAM, 'Prompt video 1');
+        $this->createGeneration($article, $user, $videoTemplateVersion, ContentArticleStep::TYPE_VIDEO_INSTAGRAM, 'Prompt video 2');
+        $this->createGeneration($article, $user, $videoTemplateVersion, ContentArticleStep::TYPE_VIDEO_INSTAGRAM, 'Prompt video 3');
+
         $this->actingAs($user)
             ->get(route('admin.content-management.articles.show', $article))
             ->assertOk()
+            ->assertSeeText('Detalle operativo del articulo para avanzar los pasos habilitados del flujo de contenidos.')
+            ->assertSee('text-emerald-950', false)
+            ->assertSee('Navegacion del flujo de gestion de contenidos', false)
+            ->assertSee('sticky top-0', false)
+            ->assertSee('overflow-x-auto', false)
+            ->assertSee('href="#content-step-objective"', false)
+            ->assertSee('href="#content-step-drafting"', false)
+            ->assertSee('href="#content-step-video-instagram"', false)
+            ->assertSee('href="#content-step-final-file"', false)
+            ->assertSee('href="#content-step-release"', false)
+            ->assertSee('id="content-step-objective"', false)
+            ->assertSee('id="content-step-drafting"', false)
+            ->assertSee('id="content-step-video-instagram"', false)
+            ->assertSee('id="content-step-final-file"', false)
+            ->assertSee('id="content-step-release"', false)
+            ->assertSee('scroll-mt-32', false)
+            ->assertSeeText('Objetivo y público')
+            ->assertSeeText('Entrega / Publicación')
+            ->assertSee('border-l-4 border-emerald-500', false)
+            ->assertSee('border-l-4 border-blue-500', false)
+            ->assertSee('py-1.5 text-sm font-semibold', false)
             ->assertSeeText('Paso 1')
             ->assertSeeText('Definir objetivo')
             ->assertSeeText('Paso 2')
             ->assertSeeText('Redactar')
             ->assertSeeText('Paso 3')
             ->assertSeeText('Crear contenido para video e Instagram')
+            ->assertSeeText('Archivos finales')
+            ->assertSeeText('Entrega manual')
+            ->assertSeeText('Publicacion manual')
+            ->assertSeeText('GPT recomendado')
+            ->assertSeeText('@consultormarketingdigital')
+            ->assertSeeText('@redactorSEOGutenber')
+            ->assertSeeText('@StorytellingCorporativo')
+            ->assertSeeText('Abre este GPT en ChatGPT.')
+            ->assertSeeText('Adjunta primero el documento final del art')
+            ->assertSeeText('Pega el prompt generado.')
+            ->assertSeeText('Ejecuta la consulta.')
+            ->assertDontSee('href="@consultormarketingdigital"', false)
+            ->assertDontSee('href="@redactorSEOGutenber"', false)
+            ->assertDontSee('href="@StorytellingCorporativo"', false)
             ->assertSeeText('Bloqueado')
             ->assertSeeText('En proceso')
             ->assertSeeText('Redacción')
@@ -274,6 +320,13 @@ class ContentArticleObjectiveDetailTest extends TestCase
             ->assertSeeText('Video e Instagram')
             ->assertSeeText('Listo')
             ->assertSeeText('Copiar prompt')
+            ->assertSee('<details', false)
+            ->assertSee('<summary', false)
+            ->assertDontSee('<details open', false)
+            ->assertSeeText('Historial de generaciones (1)')
+            ->assertSeeText('Historial de generaciones (2)')
+            ->assertSeeText('Historial de generaciones (3)')
+            ->assertSeeText('Ver prompt')
             ->assertDontSeeText('objective')
             ->assertDontSeeText('drafting')
             ->assertDontSeeText('video_instagram')
@@ -295,7 +348,9 @@ class ContentArticleObjectiveDetailTest extends TestCase
             ->test(ContentArticleObjectiveDetail::class, ['articleId' => $article->id])
             ->set('refinedObjective', 'Objetivo refinado nuevo')
             ->set('refinedTargetAudience', 'Publico refinado nuevo')
-            ->call('saveRefinedResults');
+            ->call('saveRefinedResults')
+            ->assertEmitted('contentObjectiveUpdated', $article->id)
+            ->assertSee('Resultados guardados');
 
         $article->refresh();
 
@@ -344,7 +399,9 @@ class ContentArticleObjectiveDetailTest extends TestCase
             ->set('refinedObjective', 'Objetivo refinado final')
             ->set('refinedTargetAudience', 'Publico refinado final')
             ->call('markObjectiveReady')
-            ->assertHasNoErrors();
+            ->assertHasNoErrors()
+            ->assertEmitted('contentObjectiveUpdated', $article->id)
+            ->assertSee('Paso 1 marcado como listo.');
 
         $article->refresh();
         $step = $this->objectiveStep($article);
@@ -366,10 +423,24 @@ class ContentArticleObjectiveDetailTest extends TestCase
         string $templateBody,
         bool $isActive
     ): ContentMasterTemplateVersion {
+        return $this->createTemplateVersion(
+            ContentArticleStep::TYPE_OBJECTIVE,
+            $versionNumber,
+            $templateBody,
+            $isActive
+        );
+    }
+
+    private function createTemplateVersion(
+        string $stepType,
+        int $versionNumber,
+        string $templateBody = 'Plantilla [ ].',
+        bool $isActive = true
+    ): ContentMasterTemplateVersion {
         $template = ContentMasterTemplate::query()->firstOrCreate(
-            ['key' => ContentArticleStep::TYPE_OBJECTIVE],
+            ['key' => $stepType],
             [
-                'name' => 'Objective',
+                'name' => ucfirst(str_replace('_', ' ', $stepType)),
                 'is_active' => true,
             ]
         );
@@ -379,6 +450,23 @@ class ContentArticleObjectiveDetailTest extends TestCase
             'version_number' => $versionNumber,
             'template_body' => $templateBody,
             'is_active' => $isActive,
+        ]);
+    }
+
+    private function createGeneration(
+        ContentArticle $article,
+        User $user,
+        ContentMasterTemplateVersion $templateVersion,
+        string $stepType,
+        string $promptText
+    ): ContentArticleGeneration {
+        return ContentArticleGeneration::create([
+            'content_article_id' => $article->id,
+            'content_master_template_version_id' => $templateVersion->id,
+            'step_type' => $stepType,
+            'final_prompt_text' => $promptText,
+            'generated_by' => $user->id,
+            'generated_at' => now(),
         ]);
     }
 
