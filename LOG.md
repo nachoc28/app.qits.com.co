@@ -1,5 +1,205 @@
 # LOG
 
+## 2026-07-13 (content management curation stepper item)
+
+### Context
+- Scope limited to integrating the existing manual curation block into the sticky stepper of the Content Management operational detail.
+- No database schema, internal states, services, prompt generation, master templates, Livewire events, Step 3 availability rules, final files, delivery or publication behavior were changed.
+
+### Changes made
+- Added a sticky stepper item:
+  - label: `Curado`
+  - target: `#content-step-curation`
+  - visible badge: `Manual`
+- `Manual` is only a visual label and is not persisted as a state.
+- Kept the curation block content unchanged.
+- Kept mobile horizontal scrolling behavior through the existing stepper layout.
+- Extended detail tests to cover the new stepper link, visual `Manual` label and existing curation anchor.
+
+### Test execution
+- Executed:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement\ContentArticleObjectiveDetailTest.php`
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement`
+- Result:
+  - `OK (13 tests, 160 assertions)` for the detail suite
+  - `OK (101 tests, 495 assertions)` for the full Content Management suite
+- Environment note:
+  - PHP startup still warns about missing `oci8_12c` and `pdo_firebird`, but tests pass.
+
+## 2026-07-13 (content management manual curation block)
+
+### Context
+- Scope limited to adding a visual/manual curation block before Step 3 in the Content Management operational detail.
+- No internal states, database schema, services, prompt generation, master templates, Livewire events, final files, delivery/publication behavior or Step 3 availability rules were changed.
+
+### Changes made
+- Added a static operational block after Step 2 and before Step 3.
+- Added stable future anchor:
+  - `content-step-curation`
+- Added recommended GPT:
+  - `@CuradorDeContenido`
+- Added grouped manual instructions:
+  - open `@CuradorDeContenido` in ChatGPT
+  - attach the final Word/PDF article document
+  - request review of clarity, coherence, precision, tone and strategic alignment
+  - apply recommended changes to the final document
+  - use the curated document as input for Step 3
+- Added warning:
+  - `Este paso es manual y no reemplaza la revisión humana final.`
+- Did not add the curation block to the sticky stepper.
+- Extended detail tests to cover placement, full content, stable anchor and no stepper link.
+
+### Test execution
+- Executed:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement\ContentArticleObjectiveDetailTest.php`
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement`
+- Result:
+  - `OK (13 tests, 157 assertions)` for the detail suite
+  - `OK (101 tests, 492 assertions)` for the full Content Management suite
+- Environment note:
+  - PHP startup still warns about missing `oci8_12c` and `pdo_firebird`, but tests pass.
+
+## 2026-07-13 (content management clean Prompt 3 copy text)
+
+### Context
+- Scope limited to the generated/copyable Prompt 3 content in Content Management.
+- No visual design, recommended-GPT placement, visual Step 3 instructions, loaders, local messages, soft backgrounds, sticky stepper, states, persistence schema, final files, delivery or publication behavior were changed.
+
+### Root cause
+- The phrase `Adjunta en ChatGPT el documento final del articulo en formato Word o PDF antes de ejecutar este prompt.` was not part of the approved Prompt 3 TXT template.
+- It was prepended by `ContentVideoInstagramPromptService` before the active template body during prompt assembly, so every new Prompt 3 generation stored and copied that instruction.
+
+### Changes made
+- Removed the visual attachment instruction from Prompt 3 assembly.
+- Prompt 3 now starts with the active master template body.
+- Kept the minimal article context and non-invention warning in the generated prompt.
+- Removed the unused `attachmentInstruction` render parameter from the Livewire panel.
+- Kept the visual UI instruction inside the `@StorytellingCorporativo` recommended-GPT block:
+  - `Adjunta primero el documento final del artículo en Word o PDF.`
+- No template source file, seeder or data migration was changed because the offending phrase was not in the master template source.
+- Existing historical generations were not rewritten.
+
+### Test execution
+- Executed:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement\ContentArticleVideoInstagramPanelTest.php`
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement`
+- Result:
+  - `OK (14 tests, 43 assertions)` for the Prompt 3 suite
+  - `OK (100 tests, 473 assertions)` for the full Content Management suite
+- Environment note:
+  - PHP startup still warns about missing `oci8_12c` and `pdo_firebird`, but tests pass.
+
+## 2026-07-13 (content management recommended GPT instruction placement)
+
+### Context
+- Scope limited to reorganizing the recommended-GPT instruction blocks in the Content Management operational detail.
+- No business logic, services, persistence, internal states, prompt generation, Livewire loaders, local messages, sticky stepper, soft backgrounds, final files, delivery or publication logic were changed.
+
+### Changes made
+- Moved the recommended-GPT block to the start of each operational prompt step, before the generated prompt area:
+  - Step 1: `@consultormarketingdigital`
+  - Step 2: `@redactorSEOGutenber`
+  - Step 3: `@StorytellingCorporativo`
+- Kept the GPT names as plain text; no links or invented URLs were added.
+- Consolidated Step 3 instructions into the single recommended-GPT block.
+- Removed the separate Step 3 Word/PDF warning block to avoid duplicate visual instructions.
+- Added test coverage for GPT block ordering, absence of invented links and single Word/PDF instruction rendering.
+
+### Test execution
+- Executed:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement\ContentArticleObjectiveDetailTest.php`
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement`
+- Result:
+  - `OK (12 tests, 138 assertions)` for the detail suite
+  - `OK (99 tests, 465 assertions)` for the full Content Management suite
+- Environment note:
+  - PHP startup still warns about missing `oci8_12c` and `pdo_firebird`, but tests pass.
+
+## 2026-07-13 (content management local action feedback and loaders)
+
+### Context
+- Scope limited to confirmation/error/blocking messages and loading indicators in the Content Management operational detail.
+- No business logic, services, persistence, internal states, prompt generation, GPT recommended hints, soft backgrounds, sticky stepper or flow structure were changed.
+
+### Root cause
+- Some actions used shared or card-level session flashes that were not close enough to the action that triggered them.
+- Delivery and publication shared one success flash key, so feedback could appear above both cards instead of in the specific card.
+- Operational buttons did not expose Livewire action loading states, making processing and double-click prevention unclear.
+
+### Changes made
+- Split success flash keys by card/action:
+  - Prompt 1 generation
+  - Step 1 refined fields
+  - Step 1 ready
+  - Prompt 2 generation
+  - Step 2 ready
+  - Prompt 3 generation
+  - Step 3 ready
+  - final file upload
+  - delivery actions
+  - publication actions
+- Rendered success/error/blocking/warning messages inside the card or block where the action happens.
+- Added Livewire 2 loading indicators using:
+  - `wire:loading.flex`
+  - action-specific `wire:target`
+  - `style="display: none;"`
+  - inline SVG spinner
+- Added disabled-on-loading behavior for relevant action buttons.
+- Kept existing business validation and blocking rules unchanged.
+- Extended tests for local messages, hidden-by-default loading markup and action coverage.
+
+### Actions covered
+- Save refined results
+- Mark Step 1 ready
+- Generate Prompt 1
+- Generate Prompt 2
+- Mark Step 2 ready
+- Generate Prompt 3
+- Mark Step 3 ready
+- Upload final file
+- Mark delivered
+- Unmark delivery
+- Publish
+- Update published URL
+
+### Test execution
+- Executed:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement\ContentArticleObjectiveDetailTest.php tests\Feature\ContentManagement\ContentArticleDraftingPanelTest.php tests\Feature\ContentManagement\ContentArticleVideoInstagramPanelTest.php tests\Feature\ContentManagement\ContentArticleFinalFilePanelTest.php tests\Feature\ContentManagement\ContentArticleDeliveryPublicationPanelTest.php`
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement`
+- Result:
+  - `OK (11 tests, 124 assertions)` for focused operational-detail suites
+  - `OK (98 tests, 451 assertions)` for the full Content Management suite
+- Environment note:
+  - PHP startup still warns about missing `oci8_12c` and `pdo_firebird`, but tests pass.
+
+## 2026-07-13 (content management soft section backgrounds)
+
+### Context
+- Scope limited to minor visual adjustments in the Content Management operational detail.
+- No business logic, services, persistence, Livewire events, prompt generation, internal states, GPT recommended hints, action messages or flow structure were changed.
+
+### Changes made
+- Updated the operational detail header subtitle from dark emerald text to white text for stronger contrast over the green header.
+- Applied soft background differentiation to the main flow blocks:
+  - Step 1: light blue
+  - Step 2: light emerald
+  - Step 3: light indigo
+  - Final files: light amber
+  - Manual delivery: light slate
+  - Manual publication: light emerald
+- Kept existing borders, shadows, spacing, badges, buttons, textareas and internal panels readable.
+- Updated Content Management detail assertions to cover the new contrast and soft-background classes.
+
+### Test execution
+- First execution failed because local MySQL was not running:
+  - `SQLSTATE[HY000] [2002] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión`
+- Started local Laragon MySQL and executed:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement`
+- Result:
+  - `OK (97 tests, 427 assertions)`
+- Environment note:
+  - PHP startup still warns about missing `oci8_12c` and `pdo_firebird`, but tests pass.
+
 ## 2026-07-10 (content management collapsible prompt histories)
 
 ### Context

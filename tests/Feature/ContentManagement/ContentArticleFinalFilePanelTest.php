@@ -70,7 +70,8 @@ class ContentArticleFinalFilePanelTest extends TestCase
             ->test(ContentArticleFinalFilePanel::class, ['articleId' => $article->id])
             ->set('uploadFile', $this->makeUploadedDocx())
             ->call('uploadFinalFile')
-            ->assertHasNoErrors();
+            ->assertHasNoErrors()
+            ->assertSee('Nueva version de archivo final cargada correctamente.');
 
         $file = ContentArticleFile::query()->firstOrFail();
         $this->assertSame('application/vnd.openxmlformats-officedocument.wordprocessingml.document', $file->mime_type);
@@ -88,7 +89,8 @@ class ContentArticleFinalFilePanelTest extends TestCase
             ->test(ContentArticleFinalFilePanel::class, ['articleId' => $article->id])
             ->set('uploadFile', $this->makeUploadedPdf())
             ->call('uploadFinalFile')
-            ->assertHasNoErrors();
+            ->assertHasNoErrors()
+            ->assertSee('Nueva version de archivo final cargada correctamente.');
 
         $file = ContentArticleFile::query()->firstOrFail();
         $this->assertSame('application/pdf', $file->mime_type);

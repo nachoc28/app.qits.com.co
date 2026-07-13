@@ -1,18 +1,6 @@
 <div class="space-y-6">
-    @if (session()->has('content_release_success'))
-        <div class="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 shadow-sm">
-            {{ session('content_release_success') }}
-        </div>
-    @endif
-
-    @error('delivery')
-        <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-sm">
-            {{ $message }}
-        </div>
-    @enderror
-
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
+        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-6 shadow-sm ring-1 ring-slate-100">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div class="border-l-4 border-blue-500 pl-4">
                     <h3 class="text-lg font-bold tracking-tight text-blue-800">Entrega manual</h3>
@@ -28,9 +16,15 @@
 
             @if (! $deliveryAvailability['allowed'])
                 <div class="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                    {{ $deliveryAvailability['message'] }}
+                    <span class="font-semibold">Bloqueado:</span> {{ $deliveryAvailability['message'] }}
                 </div>
             @endif
+
+            @error('delivery')
+                <div class="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    <span class="font-semibold">Error:</span> {{ $message }}
+                </div>
+            @enderror
 
             <dl class="mt-5 space-y-3 text-sm text-gray-700">
                 <div class="flex items-start justify-between gap-4">
@@ -47,23 +41,47 @@
                 <button
                     type="button"
                     wire:click="markDelivered"
+                    wire:loading.attr="disabled"
+                    wire:target="markDelivered"
                     @if(! $deliveryAvailability['allowed']) disabled @endif
                     class="inline-flex items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 shadow-sm hover:bg-blue-100 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-500"
                 >
-                    Marcar entregado
+                    <span wire:loading.remove wire:target="markDelivered">Marcar entregado</span>
+                    <span wire:loading.flex wire:target="markDelivered" style="display: none;" class="items-center gap-2">
+                        <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                        </svg>
+                        Procesando...
+                    </span>
                 </button>
 
                 <button
                     type="button"
                     wire:click="unmarkDelivered"
+                    wire:loading.attr="disabled"
+                    wire:target="unmarkDelivered"
                     class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50"
                 >
-                    Desmarcar entrega
+                    <span wire:loading.remove wire:target="unmarkDelivered">Desmarcar entrega</span>
+                    <span wire:loading.flex wire:target="unmarkDelivered" style="display: none;" class="items-center gap-2">
+                        <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                        </svg>
+                        Procesando...
+                    </span>
                 </button>
             </div>
+
+            @if (session()->has('content_delivery_success'))
+                <div class="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                    <span class="font-semibold">Exito:</span> {{ session('content_delivery_success') }}
+                </div>
+            @endif
         </div>
 
-        <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
+        <div class="rounded-2xl border border-emerald-100 bg-emerald-50 p-6 shadow-sm ring-1 ring-emerald-100">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div class="border-l-4 border-emerald-500 pl-4">
                     <h3 class="text-lg font-bold tracking-tight text-emerald-800">Publicacion manual</h3>
@@ -110,7 +128,7 @@
                     placeholder="https://ejemplo.com/articulo-publicado"
                 >
                 @error('publishedUrl')
-                    <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                    <p class="mt-2 text-sm text-red-600"><span class="font-semibold">Error:</span> {{ $message }}</p>
                 @enderror
             </div>
 
@@ -118,19 +136,43 @@
                 <button
                     type="button"
                     wire:click="publishArticle"
+                    wire:loading.attr="disabled"
+                    wire:target="publishArticle"
                     class="inline-flex items-center justify-center rounded-md border border-green-200 bg-green-50 px-4 py-2 text-sm font-semibold text-green-700 shadow-sm hover:bg-green-100"
                 >
-                    Publicar
+                    <span wire:loading.remove wire:target="publishArticle">Publicar</span>
+                    <span wire:loading.flex wire:target="publishArticle" style="display: none;" class="items-center gap-2">
+                        <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                        </svg>
+                        Publicando...
+                    </span>
                 </button>
 
                 <button
                     type="button"
                     wire:click="updatePublishedUrlAction"
+                    wire:loading.attr="disabled"
+                    wire:target="updatePublishedUrlAction"
                     class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50"
                 >
-                    Actualizar URL publicada
+                    <span wire:loading.remove wire:target="updatePublishedUrlAction">Actualizar URL publicada</span>
+                    <span wire:loading.flex wire:target="updatePublishedUrlAction" style="display: none;" class="items-center gap-2">
+                        <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                        </svg>
+                        Guardando...
+                    </span>
                 </button>
             </div>
+
+            @if (session()->has('content_publication_success'))
+                <div class="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                    <span class="font-semibold">Exito:</span> {{ session('content_publication_success') }}
+                </div>
+            @endif
         </div>
     </div>
 </div>

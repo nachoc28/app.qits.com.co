@@ -73,7 +73,7 @@ class ContentArticleDraftingPanel extends Component
 
         $this->selectedGenerationId = $generation->id;
         $this->emit('contentDraftingUpdated', (int) $this->articleId);
-        session()->flash('content_drafting_success', $wasRegeneration ? 'Prompt 2 regenerado.' : 'Prompt 2 generado.');
+        session()->flash('content_drafting_prompt_success', $wasRegeneration ? 'Prompt 2 regenerado.' : 'Prompt 2 generado.');
     }
 
     public function markDraftingReady(
@@ -91,7 +91,7 @@ class ContentArticleDraftingPanel extends Component
         }
 
         $this->emit('contentDraftingUpdated', (int) $this->articleId);
-        session()->flash('content_drafting_success', 'Paso 2 marcado como listo.');
+        session()->flash('content_drafting_ready_success', 'Paso 2 marcado como listo.');
     }
 
     public function viewGeneration(int $generationId, ContentAccessService $accessService): void

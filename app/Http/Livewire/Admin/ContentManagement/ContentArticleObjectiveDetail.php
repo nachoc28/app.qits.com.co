@@ -78,7 +78,7 @@ class ContentArticleObjectiveDetail extends Component
         $this->selectedGenerationId = $generation->id;
         $this->templateConfigurationMessage = null;
         $this->emit('contentObjectiveUpdated', (int) $this->articleId);
-        session()->flash('content_objective_success', 'Prompt 1 generado correctamente.');
+        session()->flash('content_objective_prompt_success', 'Prompt 1 generado correctamente.');
     }
 
     public function saveRefinedResults(
@@ -99,7 +99,7 @@ class ContentArticleObjectiveDetail extends Component
         $this->refinedObjective = (string) ($updated->refined_objective ?? '');
         $this->refinedTargetAudience = (string) ($updated->refined_target_audience ?? '');
         $this->emit('contentObjectiveUpdated', (int) $this->articleId);
-        session()->flash('content_objective_success', 'Resultados guardados.');
+        session()->flash('content_objective_refined_success', 'Resultados guardados.');
     }
 
     public function markObjectiveReady(
@@ -129,7 +129,7 @@ class ContentArticleObjectiveDetail extends Component
         }
 
         $this->emit('contentObjectiveUpdated', (int) $this->articleId);
-        session()->flash('content_objective_success', 'Paso 1 marcado como listo.');
+        session()->flash('content_objective_ready_success', 'Paso 1 marcado como listo.');
     }
 
     public function viewGeneration(int $generationId, ContentAccessService $accessService): void
@@ -193,6 +193,12 @@ class ContentArticleObjectiveDetail extends Component
                 'target' => 'content-step-drafting',
                 'status' => $draftingStatus,
                 'theme' => $this->stepperTheme($draftingStatus),
+            ],
+            [
+                'label' => 'Curado',
+                'target' => 'content-step-curation',
+                'status' => 'Manual',
+                'theme' => 'cyan',
             ],
             [
                 'label' => 'Video e Instagram',
@@ -288,6 +294,10 @@ class ContentArticleObjectiveDetail extends Component
 
         if ($status === 'Bloqueado') {
             return 'slate';
+        }
+
+        if ($status === 'Manual') {
+            return 'cyan';
         }
 
         return 'amber';

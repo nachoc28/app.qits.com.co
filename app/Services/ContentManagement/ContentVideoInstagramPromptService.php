@@ -13,8 +13,6 @@ use RuntimeException;
 
 class ContentVideoInstagramPromptService
 {
-    private const ATTACHMENT_INSTRUCTION = 'Adjunta en ChatGPT el documento final del articulo en formato Word o PDF antes de ejecutar este prompt.';
-
     /**
      * @return array{allowed: bool, message: string|null}
      */
@@ -143,11 +141,6 @@ class ContentVideoInstagramPromptService
         return $version;
     }
 
-    public static function attachmentInstruction(): string
-    {
-        return self::ATTACHMENT_INSTRUCTION;
-    }
-
     private function buildPromptFromTemplateVersion(
         ContentArticle $article,
         ContentMasterTemplateVersion $templateVersion
@@ -159,11 +152,10 @@ class ContentVideoInstagramPromptService
         }
 
         return implode(PHP_EOL . PHP_EOL, [
-            self::ATTACHMENT_INSTRUCTION,
+            trim($templateVersion->template_body),
             'Contexto minimo disponible del articulo:',
             'Tema: ' . trim((string) $article->topic),
             'No se adjunta automaticamente el contenido final del articulo ni se simula su lectura.',
-            trim($templateVersion->template_body),
         ]);
     }
 

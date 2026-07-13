@@ -1,5 +1,5 @@
 <div class="space-y-6">
-    <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
+    <div class="rounded-2xl border border-emerald-100 bg-emerald-50 p-6 shadow-sm ring-1 ring-emerald-100">
         @php
             $draftingStatus = optional($draftingStep)->step_status;
             $draftingBadgeClass = ! $availability['allowed']
@@ -31,12 +31,6 @@
             </div>
         </div>
 
-        @if (session()->has('content_drafting_success'))
-            <div class="mt-5 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-                <span class="font-semibold">Exito:</span> {{ session('content_drafting_success') }}
-            </div>
-        @endif
-
         @if (! $availability['allowed'])
             <div class="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                 <span class="font-semibold">Bloqueado:</span> {{ $availability['message'] }}
@@ -51,6 +45,18 @@
 
         <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.95fr)]">
             <div class="space-y-6">
+                <div class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <p class="font-semibold">GPT recomendado</p>
+                            <p class="mt-1 font-mono text-sm font-semibold text-blue-800">@redactorSEOGutenber</p>
+                        </div>
+                        <p class="max-w-xl text-blue-800">
+                            Abre este GPT en ChatGPT, pega el prompt generado y ejecuta la consulta.
+                        </p>
+                    </div>
+                </div>
+
                 <div>
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
@@ -70,13 +76,28 @@
                             <button
                                 type="button"
                                 wire:click="generatePrompt"
+                                wire:loading.attr="disabled"
+                                wire:target="generatePrompt"
                                 @if(! $availability['allowed']) disabled @endif
                                 class="inline-flex items-center justify-center rounded-md border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 shadow-sm hover:bg-indigo-100 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-500"
                             >
-                                {{ $generations->isEmpty() ? 'Generar Prompt 2' : 'Regenerar Prompt 2' }}
+                                <span wire:loading.remove wire:target="generatePrompt">{{ $generations->isEmpty() ? 'Generar Prompt 2' : 'Regenerar Prompt 2' }}</span>
+                                <span wire:loading.flex wire:target="generatePrompt" style="display: none;" class="items-center gap-2">
+                                    <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" aria-hidden="true">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                    </svg>
+                                    Generando prompt...
+                                </span>
                             </button>
                         </div>
                     </div>
+
+                    @if (session()->has('content_drafting_prompt_success'))
+                        <div class="mt-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                            <span class="font-semibold">Exito:</span> {{ session('content_drafting_prompt_success') }}
+                        </div>
+                    @endif
 
                     <textarea
                         id="content_drafting_prompt_preview"
@@ -86,26 +107,29 @@
                     >{{ optional($selectedGeneration)->final_prompt_text ?: 'Todavia no existe ninguna generacion de redacción para este articulo.' }}</textarea>
                 </div>
 
-                <div class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-                    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                            <p class="font-semibold">GPT recomendado</p>
-                            <p class="mt-1 font-mono text-sm font-semibold text-blue-800">@redactorSEOGutenber</p>
-                        </div>
-                        <p class="max-w-xl text-blue-800">
-                            Abre este GPT en ChatGPT, pega el prompt generado y ejecuta la consulta.
-                        </p>
-                    </div>
-                </div>
-
                 <div>
                     <button
                         type="button"
                         wire:click="markDraftingReady"
+                        wire:loading.attr="disabled"
+                        wire:target="markDraftingReady"
                         class="inline-flex items-center justify-center rounded-md border border-green-200 bg-green-50 px-4 py-2 text-sm font-semibold text-green-700 shadow-sm hover:bg-green-100"
                     >
-                        Marcar paso como listo
+                        <span wire:loading.remove wire:target="markDraftingReady">Marcar paso como listo</span>
+                        <span wire:loading.flex wire:target="markDraftingReady" style="display: none;" class="items-center gap-2">
+                            <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" aria-hidden="true">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                            </svg>
+                            Procesando...
+                        </span>
                     </button>
+
+                    @if (session()->has('content_drafting_ready_success'))
+                        <div class="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                            <span class="font-semibold">Exito:</span> {{ session('content_drafting_ready_success') }}
+                        </div>
+                    @endif
                 </div>
             </div>
 

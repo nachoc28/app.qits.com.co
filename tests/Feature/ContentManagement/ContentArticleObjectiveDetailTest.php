@@ -273,23 +273,32 @@ class ContentArticleObjectiveDetailTest extends TestCase
             ->get(route('admin.content-management.articles.show', $article))
             ->assertOk()
             ->assertSeeText('Detalle operativo del articulo para avanzar los pasos habilitados del flujo de contenidos.')
-            ->assertSee('text-emerald-950', false)
+            ->assertSee('text-white', false)
+            ->assertDontSee('text-emerald-950', false)
             ->assertSee('Navegacion del flujo de gestion de contenidos', false)
             ->assertSee('sticky top-0', false)
             ->assertSee('overflow-x-auto', false)
             ->assertSee('href="#content-step-objective"', false)
             ->assertSee('href="#content-step-drafting"', false)
+            ->assertSee('href="#content-step-curation"', false)
             ->assertSee('href="#content-step-video-instagram"', false)
             ->assertSee('href="#content-step-final-file"', false)
             ->assertSee('href="#content-step-release"', false)
             ->assertSee('id="content-step-objective"', false)
             ->assertSee('id="content-step-drafting"', false)
+            ->assertSee('id="content-step-curation"', false)
             ->assertSee('id="content-step-video-instagram"', false)
             ->assertSee('id="content-step-final-file"', false)
             ->assertSee('id="content-step-release"', false)
             ->assertSee('scroll-mt-32', false)
             ->assertSeeText('Objetivo y público')
             ->assertSeeText('Entrega / Publicación')
+            ->assertSee('border border-blue-100 bg-blue-50', false)
+            ->assertSee('border border-emerald-100 bg-emerald-50', false)
+            ->assertSee('border border-indigo-100 bg-indigo-50', false)
+            ->assertSee('border border-amber-100 bg-amber-50', false)
+            ->assertSee('border border-slate-200 bg-slate-50', false)
+            ->assertSee('border-cyan-200 bg-cyan-50 text-cyan-800', false)
             ->assertSee('border-l-4 border-emerald-500', false)
             ->assertSee('border-l-4 border-blue-500', false)
             ->assertSee('py-1.5 text-sm font-semibold', false)
@@ -297,6 +306,17 @@ class ContentArticleObjectiveDetailTest extends TestCase
             ->assertSeeText('Definir objetivo')
             ->assertSeeText('Paso 2')
             ->assertSeeText('Redactar')
+            ->assertSeeText('Curado previo del artículo')
+            ->assertSeeText('Curado')
+            ->assertSeeText('Manual')
+            ->assertSeeText('@CuradorDeContenido')
+            ->assertSeeText('Abre @CuradorDeContenido en ChatGPT.')
+            ->assertSeeText('Adjunta el documento final del artículo en Word o PDF.')
+            ->assertSeeText('Solicita la revisión de claridad, coherencia, precisión, tono y alineación estratégica.')
+            ->assertSeeText('Aplica los ajustes recomendados en el documento final.')
+            ->assertSeeText('Usa el documento curado como insumo para el Paso 3.')
+            ->assertSeeText('Este paso es manual y no reemplaza la revisión humana final.')
+            ->assertSee('border border-cyan-100 bg-cyan-50', false)
             ->assertSeeText('Paso 3')
             ->assertSeeText('Crear contenido para video e Instagram')
             ->assertSeeText('Archivos finales')
@@ -320,6 +340,21 @@ class ContentArticleObjectiveDetailTest extends TestCase
             ->assertSeeText('Video e Instagram')
             ->assertSeeText('Listo')
             ->assertSeeText('Copiar prompt')
+            ->assertSee('wire:loading.flex wire:target="generatePrompt" style="display: none;"', false)
+            ->assertSee('wire:loading.flex wire:target="saveRefinedResults" style="display: none;"', false)
+            ->assertSee('wire:loading.flex wire:target="markObjectiveReady" style="display: none;"', false)
+            ->assertSee('wire:loading.flex wire:target="markDraftingReady" style="display: none;"', false)
+            ->assertSee('wire:loading.flex wire:target="markVideoInstagramReady" style="display: none;"', false)
+            ->assertSee('wire:loading.flex wire:target="uploadFinalFile" style="display: none;"', false)
+            ->assertSee('wire:loading.flex wire:target="markDelivered" style="display: none;"', false)
+            ->assertSee('wire:loading.flex wire:target="unmarkDelivered" style="display: none;"', false)
+            ->assertSee('wire:loading.flex wire:target="publishArticle" style="display: none;"', false)
+            ->assertSee('wire:loading.flex wire:target="updatePublishedUrlAction" style="display: none;"', false)
+            ->assertSeeText('Generando prompt...')
+            ->assertSeeText('Guardando...')
+            ->assertSeeText('Subiendo archivo...')
+            ->assertSeeText('Publicando...')
+            ->assertSeeText('Bloqueado:')
             ->assertSee('<details', false)
             ->assertSee('<summary', false)
             ->assertDontSee('<details open', false)
@@ -332,6 +367,64 @@ class ContentArticleObjectiveDetailTest extends TestCase
             ->assertDontSeeText('video_instagram')
             ->assertDontSeeText('ready_at')
             ->assertDontSeeText('ready_by');
+    }
+
+    public function test_recommended_gpt_blocks_are_shown_before_prompt_blocks_without_duplicate_video_instruction(): void
+    {
+        $empresa = $this->createEmpresa('Empresa GPT Order');
+        $user = $this->createUser('Administrador');
+        $article = $this->createArticle($empresa, $user);
+
+        $html = $this->actingAs($user)
+            ->get(route('admin.content-management.articles.show', $article))
+            ->assertOk()
+            ->getContent();
+
+        $prompt1Position = strpos($html, '<h4 class="text-sm font-semibold text-gray-900">Prompt 1</h4>');
+        $prompt2Position = strpos($html, '<h4 class="text-sm font-semibold text-gray-900">Prompt 2</h4>');
+        $prompt3Position = strpos($html, '<h4 class="text-sm font-semibold text-gray-900">Prompt 3</h4>');
+        $gpt1Position = strpos($html, '@consultormarketingdigital');
+        $gpt2Position = strpos($html, '@redactorSEOGutenber');
+        $gpt3Position = strpos($html, '@StorytellingCorporativo');
+
+        $this->assertNotFalse($prompt1Position);
+        $this->assertNotFalse($prompt2Position);
+        $this->assertNotFalse($prompt3Position);
+        $this->assertNotFalse($gpt1Position);
+        $this->assertNotFalse($gpt2Position);
+        $this->assertNotFalse($gpt3Position);
+        $this->assertLessThan($prompt1Position, $gpt1Position);
+        $this->assertLessThan($prompt2Position, $gpt2Position);
+        $this->assertLessThan($prompt3Position, $gpt3Position);
+        $this->assertSame(1, substr_count($html, 'Adjunta primero el documento final del art'));
+        $this->assertStringNotContainsString('href="@consultormarketingdigital"', $html);
+        $this->assertStringNotContainsString('href="@redactorSEOGutenber"', $html);
+        $this->assertStringNotContainsString('href="@StorytellingCorporativo"', $html);
+    }
+
+    public function test_manual_curation_block_is_between_step_two_and_step_three_without_changing_prompt_three(): void
+    {
+        $empresa = $this->createEmpresa('Empresa Curado');
+        $user = $this->createUser('Administrador');
+        $article = $this->createArticle($empresa, $user);
+
+        $html = $this->actingAs($user)
+            ->get(route('admin.content-management.articles.show', $article))
+            ->assertOk()
+            ->getContent();
+
+        $draftingPosition = strpos($html, 'id="content-step-drafting"');
+        $curationPosition = strpos($html, 'id="content-step-curation"');
+        $videoPosition = strpos($html, 'id="content-step-video-instagram"');
+
+        $this->assertNotFalse($draftingPosition);
+        $this->assertNotFalse($curationPosition);
+        $this->assertNotFalse($videoPosition);
+        $this->assertLessThan($curationPosition, $draftingPosition);
+        $this->assertLessThan($videoPosition, $curationPosition);
+        $this->assertStringContainsString('@CuradorDeContenido', $html);
+        $this->assertStringContainsString('href="#content-step-curation"', $html);
+        $this->assertStringContainsString('id="content_video_instagram_prompt_preview"', $html);
     }
 
     public function test_saving_refined_fields_preserves_general_fields(): void

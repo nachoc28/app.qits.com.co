@@ -46,7 +46,7 @@ class ContentArticleDeliveryPublicationPanel extends Component
             ]);
         }
 
-        session()->flash('content_release_success', 'Entrega registrada correctamente.');
+        session()->flash('content_delivery_success', 'Entrega registrada correctamente.');
     }
 
     public function unmarkDelivered(
@@ -56,7 +56,7 @@ class ContentArticleDeliveryPublicationPanel extends Component
         $article = $this->resolveArticle($accessService);
         $releaseService->unmarkDelivered($article);
 
-        session()->flash('content_release_success', 'Entrega corregida correctamente.');
+        session()->flash('content_delivery_success', 'Entrega corregida correctamente.');
     }
 
     public function publishArticle(
@@ -78,7 +78,7 @@ class ContentArticleDeliveryPublicationPanel extends Component
         }
 
         $this->publishedUrl = (string) ($updated->published_url ?? '');
-        session()->flash('content_release_success', 'Publicacion registrada correctamente.');
+        session()->flash('content_publication_success', 'Publicacion registrada correctamente.');
     }
 
     public function updatePublishedUrlAction(
@@ -97,7 +97,7 @@ class ContentArticleDeliveryPublicationPanel extends Component
         }
 
         $this->publishedUrl = (string) ($updated->published_url ?? '');
-        session()->flash('content_release_success', 'URL publicada actualizada correctamente.');
+        session()->flash('content_publication_success', 'URL publicada actualizada correctamente.');
     }
 
     public function render(

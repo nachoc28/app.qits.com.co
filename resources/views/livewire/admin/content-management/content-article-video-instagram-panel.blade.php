@@ -1,5 +1,5 @@
 <div class="space-y-6">
-    <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
+    <div class="rounded-2xl border border-indigo-100 bg-indigo-50 p-6 shadow-sm ring-1 ring-indigo-100">
         @php
             $videoStatus = optional($videoStep)->step_status;
             $videoBadgeClass = ! $availability['allowed']
@@ -28,16 +28,6 @@
             </div>
         </div>
 
-        @if (session()->has('content_video_instagram_success'))
-            <div class="mt-5 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-                <span class="font-semibold">Exito:</span> {{ session('content_video_instagram_success') }}
-            </div>
-        @endif
-
-        <div class="mt-5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-            <span class="font-semibold">Antes de usar este prompt:</span> {{ $attachmentInstruction }}
-        </div>
-
         @if (! $availability['allowed'])
             <div class="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                 <span class="font-semibold">Bloqueado:</span> {{ $availability['message'] }}
@@ -52,6 +42,17 @@
 
         <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.95fr)]">
             <div class="space-y-6">
+                <div class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                    <p class="font-semibold">GPT recomendado</p>
+                    <p class="mt-1 font-mono text-sm font-semibold text-blue-800">@StorytellingCorporativo</p>
+                    <ol class="mt-3 list-decimal space-y-1 pl-5 text-blue-800">
+                        <li>Abre este GPT en ChatGPT.</li>
+                        <li>Adjunta primero el documento final del artículo en Word o PDF.</li>
+                        <li>Pega el prompt generado.</li>
+                        <li>Ejecuta la consulta.</li>
+                    </ol>
+                </div>
+
                 <div>
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
@@ -71,13 +72,28 @@
                             <button
                                 type="button"
                                 wire:click="generatePrompt"
+                                wire:loading.attr="disabled"
+                                wire:target="generatePrompt"
                                 @if(! $availability['allowed']) disabled @endif
                                 class="inline-flex items-center justify-center rounded-md border border-pink-200 bg-pink-50 px-4 py-2 text-sm font-semibold text-pink-700 shadow-sm hover:bg-pink-100 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-500"
                             >
-                                {{ $generations->isEmpty() ? 'Generar Prompt 3' : 'Regenerar Prompt 3' }}
+                                <span wire:loading.remove wire:target="generatePrompt">{{ $generations->isEmpty() ? 'Generar Prompt 3' : 'Regenerar Prompt 3' }}</span>
+                                <span wire:loading.flex wire:target="generatePrompt" style="display: none;" class="items-center gap-2">
+                                    <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" aria-hidden="true">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                    </svg>
+                                    Generando prompt...
+                                </span>
                             </button>
                         </div>
                     </div>
+
+                    @if (session()->has('content_video_instagram_prompt_success'))
+                        <div class="mt-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                            <span class="font-semibold">Exito:</span> {{ session('content_video_instagram_prompt_success') }}
+                        </div>
+                    @endif
 
                     <textarea
                         id="content_video_instagram_prompt_preview"
@@ -87,25 +103,29 @@
                     >{{ optional($selectedGeneration)->final_prompt_text ?: 'Todavia no existe ninguna generacion de Video e Instagram para este articulo.' }}</textarea>
                 </div>
 
-                <div class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-                    <p class="font-semibold">GPT recomendado</p>
-                    <p class="mt-1 font-mono text-sm font-semibold text-blue-800">@StorytellingCorporativo</p>
-                    <ol class="mt-3 list-decimal space-y-1 pl-5 text-blue-800">
-                        <li>Abre este GPT en ChatGPT.</li>
-                        <li>Adjunta primero el documento final del artÃ­culo en Word o PDF.</li>
-                        <li>Pega el prompt generado.</li>
-                        <li>Ejecuta la consulta.</li>
-                    </ol>
-                </div>
-
                 <div>
                     <button
                         type="button"
                         wire:click="markVideoInstagramReady"
+                        wire:loading.attr="disabled"
+                        wire:target="markVideoInstagramReady"
                         class="inline-flex items-center justify-center rounded-md border border-green-200 bg-green-50 px-4 py-2 text-sm font-semibold text-green-700 shadow-sm hover:bg-green-100"
                     >
-                        Marcar paso como listo
+                        <span wire:loading.remove wire:target="markVideoInstagramReady">Marcar paso como listo</span>
+                        <span wire:loading.flex wire:target="markVideoInstagramReady" style="display: none;" class="items-center gap-2">
+                            <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" aria-hidden="true">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                            </svg>
+                            Procesando...
+                        </span>
                     </button>
+
+                    @if (session()->has('content_video_instagram_ready_success'))
+                        <div class="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                            <span class="font-semibold">Exito:</span> {{ session('content_video_instagram_ready_success') }}
+                        </div>
+                    @endif
                 </div>
             </div>
 

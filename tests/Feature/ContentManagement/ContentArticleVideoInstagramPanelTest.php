@@ -73,7 +73,7 @@ class ContentArticleVideoInstagramPanelTest extends TestCase
         $this->assertNotSame($inactiveVersion->id, $generation->content_master_template_version_id);
     }
 
-    public function test_prompt_includes_explicit_word_or_pdf_instruction(): void
+    public function test_generated_prompt_does_not_include_visual_word_or_pdf_instruction(): void
     {
         $empresa = $this->createEmpresa('Empresa Instruction');
         $user = $this->createUser('Administrador');
@@ -86,10 +86,9 @@ class ContentArticleVideoInstagramPanelTest extends TestCase
         $service = app(ContentVideoInstagramPromptService::class);
         $generation = $service->generate($article, $user);
 
-        $this->assertStringContainsString(
-            'Adjunta en ChatGPT el documento final del articulo en formato Word o PDF antes de ejecutar este prompt.',
-            $generation->final_prompt_text
-        );
+        $this->assertStringStartsWith('PROMPT VIDEOS E INSTAGRAM', $generation->final_prompt_text);
+        $this->assertStringNotContainsString('Adjunta en ChatGPT el documento final del articulo en formato Word o PDF antes de ejecutar este prompt.', $generation->final_prompt_text);
+        $this->assertStringNotContainsString('Adjunta primero el documento final del artículo en Word o PDF.', $generation->final_prompt_text);
         $this->assertStringContainsString('Tema: Tema Video', $generation->final_prompt_text);
     }
 
@@ -109,6 +108,7 @@ class ContentArticleVideoInstagramPanelTest extends TestCase
         $this->assertStringContainsString('No se adjunta automaticamente el contenido final del articulo ni se simula su lectura.', $prompt);
         $this->assertStringNotContainsString('Contenido final del articulo:', $prompt);
         $this->assertStringNotContainsString('Texto del articulo:', $prompt);
+        $this->assertStringNotContainsString('Adjunta en ChatGPT el documento final del articulo en formato Word o PDF antes de ejecutar este prompt.', $prompt);
     }
 
     public function test_saves_independent_generation_and_regeneration_history(): void
@@ -125,6 +125,46 @@ class ContentArticleVideoInstagramPanelTest extends TestCase
 
         $this->assertNotSame($first->id, $second->id);
         $this->assertSame(2, $this->videoGenerationCount($article));
+    }
+
+    public function test_livewire_generate_video_prompt_shows_local_success_message(): void
+    {
+        $empresa = $this->createEmpresa('Empresa Mensaje Video');
+        $user = $this->createUser('Administrador');
+        $article = $this->createReadyForVideoInstagramArticle($empresa, $user);
+        $this->createVideoInstagramTemplateVersion(1, 'PROMPT VIDEOS E INSTAGRAM', true);
+
+        Livewire::actingAs($user)
+            ->test(ContentArticleVideoInstagramPanel::class, ['articleId' => $article->id])
+            ->call('generatePrompt')
+            ->assertHasNoErrors()
+            ->assertSee('Prompt 3 generado.');
+    }
+
+    public function test_livewire_prompt_preview_keeps_visual_instruction_out_of_copyable_prompt(): void
+    {
+        $empresa = $this->createEmpresa('Empresa Preview Video');
+        $user = $this->createUser('Administrador');
+        $article = $this->createReadyForVideoInstagramArticle($empresa, $user, true, [
+            'topic' => 'Tema Preview',
+        ]);
+        $this->createVideoInstagramTemplateVersion(1, 'PROMPT VIDEOS E INSTAGRAM', true);
+
+        Livewire::actingAs($user)
+            ->test(ContentArticleVideoInstagramPanel::class, ['articleId' => $article->id])
+            ->call('generatePrompt')
+            ->assertHasNoErrors()
+            ->assertSee('Adjunta primero el documento final del artículo en Word o PDF.')
+            ->assertDontSee('Adjunta en ChatGPT el documento final del articulo en formato Word o PDF antes de ejecutar este prompt.');
+
+        $generation = ContentArticleGeneration::query()
+            ->where('content_article_id', $article->id)
+            ->where('step_type', ContentArticleStep::TYPE_VIDEO_INSTAGRAM)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertStringStartsWith('PROMPT VIDEOS E INSTAGRAM', $generation->final_prompt_text);
+        $this->assertStringNotContainsString('Adjunta en ChatGPT el documento final del articulo en formato Word o PDF antes de ejecutar este prompt.', $generation->final_prompt_text);
     }
 
     public function test_first_generation_updates_video_instagram_stage_and_step(): void

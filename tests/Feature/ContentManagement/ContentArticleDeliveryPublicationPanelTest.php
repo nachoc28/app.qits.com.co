@@ -61,7 +61,8 @@ class ContentArticleDeliveryPublicationPanelTest extends TestCase
         Livewire::actingAs($user)
             ->test(ContentArticleDeliveryPublicationPanel::class, ['articleId' => $article->id])
             ->call('markDelivered')
-            ->assertHasNoErrors();
+            ->assertHasNoErrors()
+            ->assertSee('Entrega registrada correctamente.');
 
         $article->refresh();
 
@@ -84,7 +85,8 @@ class ContentArticleDeliveryPublicationPanelTest extends TestCase
         Livewire::actingAs($user)
             ->test(ContentArticleDeliveryPublicationPanel::class, ['articleId' => $article->fresh()->id])
             ->call('unmarkDelivered')
-            ->assertHasNoErrors();
+            ->assertHasNoErrors()
+            ->assertSee('Entrega corregida correctamente.');
 
         $article->refresh();
         $this->assertNull($article->delivered_at);
@@ -117,7 +119,8 @@ class ContentArticleDeliveryPublicationPanelTest extends TestCase
             ->test(ContentArticleDeliveryPublicationPanel::class, ['articleId' => $article->id])
             ->set('publishedUrl', 'https://example.com/articulo-publicado')
             ->call('publishArticle')
-            ->assertHasNoErrors();
+            ->assertHasNoErrors()
+            ->assertSee('Publicacion registrada correctamente.');
 
         $article->refresh();
 
@@ -163,7 +166,8 @@ class ContentArticleDeliveryPublicationPanelTest extends TestCase
             ->test(ContentArticleDeliveryPublicationPanel::class, ['articleId' => $article->fresh()->id])
             ->set('publishedUrl', 'https://example.com/actualizada')
             ->call('updatePublishedUrlAction')
-            ->assertHasNoErrors();
+            ->assertHasNoErrors()
+            ->assertSee('URL publicada actualizada correctamente.');
 
         $article->refresh();
         $this->assertSame('https://example.com/actualizada', $article->published_url);

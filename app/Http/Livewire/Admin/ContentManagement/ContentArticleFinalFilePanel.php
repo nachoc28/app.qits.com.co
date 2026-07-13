@@ -57,7 +57,7 @@ class ContentArticleFinalFilePanel extends Component
         }
 
         $this->uploadFile = null;
-        session()->flash('content_final_file_success', 'Nueva version de archivo final cargada correctamente.');
+        session()->flash('content_final_file_upload_success', 'Nueva version de archivo final cargada correctamente.');
     }
 
     public function render(

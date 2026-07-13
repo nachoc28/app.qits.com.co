@@ -10,6 +10,7 @@
                         'emerald' => 'border-emerald-200 bg-emerald-50 text-emerald-800',
                         'blue' => 'border-blue-200 bg-blue-50 text-blue-800',
                         'amber' => 'border-amber-200 bg-amber-50 text-amber-800',
+                        'cyan' => 'border-cyan-200 bg-cyan-50 text-cyan-800',
                         default => 'border-slate-200 bg-slate-50 text-slate-700',
                     };
                 @endphp
@@ -79,7 +80,7 @@
         </div>
     </div>
 
-    <div id="content-step-objective" class="scroll-mt-32 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
+    <div id="content-step-objective" class="scroll-mt-32 rounded-2xl border border-blue-100 bg-blue-50 p-6 shadow-sm ring-1 ring-blue-100">
         @php
             $objectiveStatus = optional($objectiveStep)->step_status;
             $objectiveBadgeClass = match ($objectiveStatus) {
@@ -102,12 +103,6 @@
             </span>
         </div>
 
-        @if (session()->has('content_objective_success'))
-            <div class="mt-5 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-                <span class="font-semibold">Exito:</span> {{ session('content_objective_success') }}
-            </div>
-        @endif
-
         @if ($templateConfigurationMessage)
             <div class="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 <span class="font-semibold">Error:</span> {{ $templateConfigurationMessage }}
@@ -116,6 +111,18 @@
 
         <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.95fr)]">
             <div class="space-y-6">
+                <div class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <p class="font-semibold">GPT recomendado</p>
+                            <p class="mt-1 font-mono text-sm font-semibold text-blue-800">@consultormarketingdigital</p>
+                        </div>
+                        <p class="max-w-xl text-blue-800">
+                            Abre este GPT en ChatGPT, pega el prompt generado y ejecuta la consulta.
+                        </p>
+                    </div>
+                </div>
+
                 <div>
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
@@ -135,12 +142,27 @@
                             <button
                                 type="button"
                                 wire:click="generatePrompt"
+                                wire:loading.attr="disabled"
+                                wire:target="generatePrompt"
                                 class="inline-flex items-center justify-center rounded-md border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 shadow-sm hover:bg-indigo-100"
                             >
-                                {{ $generations->isEmpty() ? 'Generar Prompt 1' : 'Regenerar Prompt 1' }}
+                                <span wire:loading.remove wire:target="generatePrompt">{{ $generations->isEmpty() ? 'Generar Prompt 1' : 'Regenerar Prompt 1' }}</span>
+                                <span wire:loading.flex wire:target="generatePrompt" style="display: none;" class="items-center gap-2">
+                                    <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" aria-hidden="true">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                    </svg>
+                                    Generando prompt...
+                                </span>
                             </button>
                         </div>
                     </div>
+
+                    @if (session()->has('content_objective_prompt_success'))
+                        <div class="mt-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                            <span class="font-semibold">Exito:</span> {{ session('content_objective_prompt_success') }}
+                        </div>
+                    @endif
 
                     <textarea
                         id="content_objective_prompt_preview"
@@ -148,18 +170,6 @@
                         readonly
                         class="mt-4 w-full rounded-xl border-gray-300 bg-gray-50 text-sm text-gray-800 shadow-sm focus:border-gray-300 focus:ring-0"
                     >{{ optional($selectedGeneration)->final_prompt_text ?: 'Todavia no existe ninguna generacion para este articulo.' }}</textarea>
-
-                    <div class="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-                        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                            <div>
-                                <p class="font-semibold">GPT recomendado</p>
-                                <p class="mt-1 font-mono text-sm font-semibold text-blue-800">@consultormarketingdigital</p>
-                            </div>
-                            <p class="max-w-xl text-blue-800">
-                                Abre este GPT en ChatGPT, pega el prompt generado y ejecuta la consulta.
-                            </p>
-                        </div>
-                    </div>
                 </div>
 
                 <div class="rounded-xl border border-gray-200 bg-gray-50 p-4">
@@ -178,7 +188,7 @@
                                 class="mt-2 w-full rounded-xl border-gray-300 text-sm text-gray-800 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                             ></textarea>
                             @error('refinedObjective')
-                                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                                <p class="mt-2 text-sm text-red-600"><span class="font-semibold">Error:</span> {{ $message }}</p>
                             @enderror
                         </div>
 
@@ -191,7 +201,7 @@
                                 class="mt-2 w-full rounded-xl border-gray-300 text-sm text-gray-800 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                             ></textarea>
                             @error('refinedTargetAudience')
-                                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                                <p class="mt-2 text-sm text-red-600"><span class="font-semibold">Error:</span> {{ $message }}</p>
                             @enderror
                         </div>
                     </div>
@@ -200,19 +210,49 @@
                         <button
                             type="button"
                             wire:click="saveRefinedResults"
+                            wire:loading.attr="disabled"
+                            wire:target="saveRefinedResults"
                             class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50"
                         >
-                            Guardar refinados
+                            <span wire:loading.remove wire:target="saveRefinedResults">Guardar refinados</span>
+                            <span wire:loading.flex wire:target="saveRefinedResults" style="display: none;" class="items-center gap-2">
+                                <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" aria-hidden="true">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                </svg>
+                                Guardando...
+                            </span>
                         </button>
 
                         <button
                             type="button"
                             wire:click="markObjectiveReady"
+                            wire:loading.attr="disabled"
+                            wire:target="markObjectiveReady"
                             class="inline-flex items-center justify-center rounded-md border border-green-200 bg-green-50 px-4 py-2 text-sm font-semibold text-green-700 shadow-sm hover:bg-green-100"
                         >
-                            Marcar paso como listo
+                            <span wire:loading.remove wire:target="markObjectiveReady">Marcar paso como listo</span>
+                            <span wire:loading.flex wire:target="markObjectiveReady" style="display: none;" class="items-center gap-2">
+                                <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" aria-hidden="true">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                </svg>
+                                Procesando...
+                            </span>
                         </button>
                     </div>
+
+                    @if (session()->has('content_objective_refined_success'))
+                        <div class="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                            <span class="font-semibold">Exito:</span> {{ session('content_objective_refined_success') }}
+                        </div>
+                    @endif
+
+                    @if (session()->has('content_objective_ready_success'))
+                        <div class="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                            <span class="font-semibold">Exito:</span> {{ session('content_objective_ready_success') }}
+                        </div>
+                    @endif
                 </div>
             </div>
 
@@ -280,6 +320,37 @@
 
     <div id="content-step-drafting" class="scroll-mt-32">
         @livewire(\App\Http\Livewire\Admin\ContentManagement\ContentArticleDraftingPanel::class, ['articleId' => $article->id], key('content-drafting-' . $article->id))
+    </div>
+
+    <div id="content-step-curation" class="scroll-mt-32 rounded-2xl border border-cyan-100 bg-cyan-50 p-6 shadow-sm ring-1 ring-cyan-100">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div class="border-l-4 border-cyan-500 pl-4">
+                <h3 class="text-lg font-bold tracking-tight text-cyan-800">Curado previo del artículo</h3>
+                <p class="mt-1 text-sm text-gray-600">
+                    Proceso manual recomendado antes de crear contenido para video e Instagram.
+                </p>
+            </div>
+
+            <span class="inline-flex w-fit items-center rounded-full border border-cyan-200 bg-white px-3 py-1.5 text-sm font-semibold leading-none text-cyan-800 shadow-sm">
+                Paso manual
+            </span>
+        </div>
+
+        <div class="mt-5 rounded-xl border border-cyan-200 bg-white px-4 py-3 text-sm text-cyan-900">
+            <p class="font-semibold">GPT recomendado</p>
+            <p class="mt-1 font-mono text-sm font-semibold text-cyan-800">@CuradorDeContenido</p>
+            <ol class="mt-3 list-decimal space-y-1 pl-5 text-cyan-800">
+                <li>Abre @@CuradorDeContenido en ChatGPT.</li>
+                <li>Adjunta el documento final del artículo en Word o PDF.</li>
+                <li>Solicita la revisión de claridad, coherencia, precisión, tono y alineación estratégica.</li>
+                <li>Aplica los ajustes recomendados en el documento final.</li>
+                <li>Usa el documento curado como insumo para el Paso 3.</li>
+            </ol>
+        </div>
+
+        <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <span class="font-semibold">Advertencia:</span> Este paso es manual y no reemplaza la revisión humana final.
+        </div>
     </div>
 
     <div id="content-step-video-instagram" class="scroll-mt-32">

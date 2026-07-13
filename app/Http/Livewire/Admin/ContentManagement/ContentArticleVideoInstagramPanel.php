@@ -72,7 +72,7 @@ class ContentArticleVideoInstagramPanel extends Component
         }
 
         $this->selectedGenerationId = $generation->id;
-        session()->flash('content_video_instagram_success', $wasRegeneration ? 'Prompt 3 regenerado.' : 'Prompt 3 generado.');
+        session()->flash('content_video_instagram_prompt_success', $wasRegeneration ? 'Prompt 3 regenerado.' : 'Prompt 3 generado.');
     }
 
     public function markVideoInstagramReady(
@@ -89,7 +89,7 @@ class ContentArticleVideoInstagramPanel extends Component
             ]);
         }
 
-        session()->flash('content_video_instagram_success', 'Paso 3 marcado como listo.');
+        session()->flash('content_video_instagram_ready_success', 'Paso 3 marcado como listo.');
     }
 
     public function viewGeneration(int $generationId, ContentAccessService $accessService): void
@@ -126,7 +126,6 @@ class ContentArticleVideoInstagramPanel extends Component
             'generations' => $generations,
             'selectedGeneration' => $selectedGeneration,
             'availability' => $promptService->availability($article),
-            'attachmentInstruction' => ContentVideoInstagramPromptService::attachmentInstruction(),
         ]);
     }
 

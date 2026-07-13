@@ -1,11 +1,5 @@
 <div class="space-y-6">
-    @if (session()->has('content_final_file_success'))
-        <div class="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 shadow-sm">
-            {{ session('content_final_file_success') }}
-        </div>
-    @endif
-
-    <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
+    <div class="rounded-2xl border border-amber-100 bg-amber-50 p-6 shadow-sm ring-1 ring-amber-100">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div class="border-l-4 border-emerald-500 pl-4">
                 <h3 class="text-lg font-bold tracking-tight text-emerald-800">Archivos finales</h3>
@@ -26,7 +20,7 @@
 
         @if (! $availability['allowed'])
             <div class="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                {{ $availability['message'] }}
+                <span class="font-semibold">Bloqueado:</span> {{ $availability['message'] }}
             </div>
         @endif
 
@@ -42,7 +36,7 @@
                         class="mt-2 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                     >
                     @error('uploadFile')
-                        <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                        <p class="mt-2 text-sm text-red-600"><span class="font-semibold">Error:</span> {{ $message }}</p>
                     @enderror
                     <p class="mt-2 text-xs text-gray-500">
                         El nombre original se conserva como metadata. El archivo fisico se guarda con nombre interno seguro y privado.
@@ -53,13 +47,28 @@
                     <button
                         type="button"
                         wire:click="uploadFinalFile"
+                        wire:loading.attr="disabled"
+                        wire:target="uploadFinalFile"
                         @if(! $availability['allowed']) disabled @endif
                         class="inline-flex w-full items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 shadow-sm hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-500"
                     >
-                        Subir nueva version
+                        <span wire:loading.remove wire:target="uploadFinalFile">Subir nueva version</span>
+                        <span wire:loading.flex wire:target="uploadFinalFile" style="display: none;" class="items-center gap-2">
+                            <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" aria-hidden="true">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                            </svg>
+                            Subiendo archivo...
+                        </span>
                     </button>
                 </div>
             </div>
+
+            @if (session()->has('content_final_file_upload_success'))
+                <div class="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                    <span class="font-semibold">Exito:</span> {{ session('content_final_file_upload_success') }}
+                </div>
+            @endif
         </div>
     </div>
 
