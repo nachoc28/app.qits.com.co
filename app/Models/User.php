@@ -112,4 +112,49 @@ class User extends Authenticatable
         return $this->hasMany(ContentArticle::class, 'published_by');
     }
 
+    public function createdAiFlows()
+    {
+        return $this->hasMany(AiFlow::class, 'created_by');
+    }
+
+    public function publishedAiFlowVersions()
+    {
+        return $this->hasMany(AiFlowVersion::class, 'published_by');
+    }
+
+    public function startedAiFlowExecutions()
+    {
+        return $this->hasMany(AiFlowExecution::class, 'started_by');
+    }
+
+    public function startedAiFlowExecutionSteps()
+    {
+        return $this->hasMany(AiFlowExecutionStep::class, 'started_by');
+    }
+
+    public function completedAiFlowExecutionSteps()
+    {
+        return $this->hasMany(AiFlowExecutionStep::class, 'completed_by');
+    }
+
+    public function filledAiFlowExecutionValues()
+    {
+        return $this->hasMany(AiFlowExecutionValue::class, 'filled_by');
+    }
+
+    public function generatedAiFlowStepGenerations()
+    {
+        return $this->hasMany(AiFlowStepGeneration::class, 'generated_by');
+    }
+
+    public function savedAiFlowStepResults()
+    {
+        return $this->hasMany(AiFlowStepResult::class, 'saved_by');
+    }
+
+    public function markedAiFlowStrategicOutputs()
+    {
+        return $this->hasMany(AiFlowStrategicOutput::class, 'marked_by');
+    }
+
 }

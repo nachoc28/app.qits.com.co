@@ -2,6 +2,10 @@
 
 use App\Http\Controllers\Integrations\GoogleOAuthController;
 use App\Http\Controllers\Admin\ContentManagement\ContentArticleFileDownloadController;
+use App\Models\AiFlow;
+use App\Models\AiFlowExecution;
+use App\Models\AiFlowStrategicOutput;
+use App\Models\AiFlowVersion;
 use App\Http\Controllers\PublicFormNotificationController;
 use App\Models\ContentArticle;
 use App\Models\Empresa;
@@ -116,6 +120,77 @@ Route::middleware([
 
     Route::get('/admin/content-management/articles/{article}/files/{file}/download', ContentArticleFileDownloadController::class)
         ->name('admin.content-management.articles.files.download');
+
+    Route::get('/admin/ai-flow-executions', function (\App\Services\AiFlows\AiFlowAccessService $accessService) {
+        abort_unless($accessService->canExecuteFlows(auth()->user()), 403);
+
+        return view('admin.ai-flows.executions.index');
+    })->name('admin.ai-flow-executions.index');
+
+    Route::get('/admin/ai-flow-executions/create', function (\App\Services\AiFlows\AiFlowAccessService $accessService) {
+        abort_unless($accessService->canExecuteFlows(auth()->user()), 403);
+
+        return view('admin.ai-flows.executions.create');
+    })->name('admin.ai-flow-executions.create');
+
+    Route::get('/admin/ai-flow-executions/{execution}', function (AiFlowExecution $execution, \App\Services\AiFlows\AiFlowAccessService $accessService) {
+        abort_unless($accessService->canAccessExecution(auth()->user(), $execution), 403);
+
+        return view('admin.ai-flows.executions.show', compact('execution'));
+    })->name('admin.ai-flow-executions.show');
+
+    Route::get('/admin/ai-flow-strategic-outputs', function (\App\Services\AiFlows\AiFlowAccessService $accessService) {
+        abort_unless($accessService->canViewStrategicOutputs(auth()->user()), 403);
+
+        return view('admin.ai-flows.strategic-outputs.index');
+    })->name('admin.ai-flow-strategic-outputs.index');
+
+    Route::get('/admin/ai-flow-strategic-outputs/{output}', function (AiFlowStrategicOutput $output, \App\Services\AiFlows\AiFlowAccessService $accessService) {
+        abort_unless($accessService->canViewStrategicOutputs(auth()->user()), 403);
+
+        $output->loadMissing([
+            'empresa',
+            'execution.flow',
+            'executionStep.step',
+            'markedBy',
+        ]);
+
+        return view('admin.ai-flows.strategic-outputs.show', [
+            'output' => $output,
+            'typeLabel' => \App\Support\AiFlowLabels::strategicOutputType($output->type),
+        ]);
+    })->name('admin.ai-flow-strategic-outputs.show');
+
+    Route::get('/admin/ai-flows', function () {
+        abort_unless(auth()->user() && auth()->user()->isAdmin(), 403);
+
+        return view('admin.ai-flows.index');
+    })->name('admin.ai-flows.index');
+
+    Route::get('/admin/ai-flows/create', function () {
+        abort_unless(auth()->user() && auth()->user()->isAdmin(), 403);
+
+        return view('admin.ai-flows.create');
+    })->name('admin.ai-flows.create');
+
+    Route::get('/admin/ai-flows/{flow}/edit', function (AiFlow $flow) {
+        abort_unless(auth()->user() && auth()->user()->isAdmin(), 403);
+
+        return view('admin.ai-flows.edit', compact('flow'));
+    })->name('admin.ai-flows.edit');
+
+    Route::get('/admin/ai-flows/{flow}/versions', function (AiFlow $flow) {
+        abort_unless(auth()->user() && auth()->user()->isAdmin(), 403);
+
+        return view('admin.ai-flows.versions.index', compact('flow'));
+    })->name('admin.ai-flows.versions.index');
+
+    Route::get('/admin/ai-flows/{flow}/versions/{version}', function (AiFlow $flow, AiFlowVersion $version) {
+        abort_unless(auth()->user() && auth()->user()->isAdmin(), 403);
+        abort_unless((int) $version->ai_flow_id === (int) $flow->id, 404);
+
+        return view('admin.ai-flows.versions.show', compact('flow', 'version'));
+    })->name('admin.ai-flows.versions.show');
 
     Route::get('/google/connect', [GoogleOAuthController::class, 'connect']);
     Route::get('/google/callback', [GoogleOAuthController::class, 'callback']);

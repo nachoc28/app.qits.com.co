@@ -165,6 +165,18 @@ class Empresa extends Model
         );
     }
 
+    // — Módulo Flujos IA ————————————————————————————————————————————————
+
+    public function aiFlowExecutions()
+    {
+        return $this->hasMany(AiFlowExecution::class);
+    }
+
+    public function aiFlowStrategicOutputs()
+    {
+        return $this->hasMany(AiFlowStrategicOutput::class);
+    }
+
     /** Scopes */
     public function scopeNombreLike(Builder $q, string $term): Builder
     {

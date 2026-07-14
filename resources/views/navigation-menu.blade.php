@@ -28,6 +28,11 @@
                                             :active="request()->routeIs('admin.content-management*')">
                                 Gestión de Contenidos
                             </x-jet-nav-link>
+
+                            <x-jet-nav-link href="{{ route('admin.ai-flows.index') }}"
+                                            :active="request()->routeIs('admin.ai-flows*') || request()->routeIs('admin.ai-flow-executions*') || request()->routeIs('admin.ai-flow-strategic-outputs*')">
+                                Flujos IA
+                            </x-jet-nav-link>
                         @endif
                     @endauth
                 </div>
@@ -167,6 +172,11 @@
                     <x-jet-responsive-nav-link href="{{ route('admin.content-management.index') }}"
                                                :active="request()->routeIs('admin.content-management*')">
                         Gestión de Contenidos
+                    </x-jet-responsive-nav-link>
+
+                    <x-jet-responsive-nav-link href="{{ route('admin.ai-flows.index') }}"
+                                               :active="request()->routeIs('admin.ai-flows*') || request()->routeIs('admin.ai-flow-executions*') || request()->routeIs('admin.ai-flow-strategic-outputs*')">
+                        Flujos IA
                     </x-jet-responsive-nav-link>
                 @endif
             @endauth

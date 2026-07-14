@@ -1,5 +1,471 @@
 # LOG
 
+## 2026-07-14 (ai flows phase 5A manual loading validation)
+
+### Context
+- Scope limited to validating that administrators can load and execute a real AI Flow manually from the existing interface.
+- No market research seeder, 15-step prompt loading, Content Management migration, OpenAI integration, file upload or document generation was implemented.
+
+### Validation performed
+- Added `tests/Feature/AiFlows/AiFlowManualLoadingWorkflowTest.php`.
+- The test covers a 3-step manual flow:
+  - `Validador de brief`
+  - `Investigador de fuentes`
+  - `Analisis de mercado`
+- The validation exercises:
+  - manual flow creation
+  - draft version creation
+  - manual stage creation with long prompt text
+  - variable detection and invalid-token preview availability
+  - variable synchronization
+  - output variable configuration with `source_step_id`
+  - explicit stage dependencies
+  - version publication
+  - execution creation for an `Empresa`
+  - variable value entry
+  - prompt generation
+  - result saving
+  - stage completion
+  - downstream unlocking
+  - output variable replacement from prior stage results
+
+### Findings
+- The existing interface supports the manual loading and execution path for the reduced 3-step validation flow.
+- No functional blocker was found that required UI, service or persistence changes.
+- The test avoids brittle text assertions around accented strings and validates key transitions through database state and generated prompt content.
+
+### Test execution
+- Executed:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\AiFlows\AiFlowManualLoadingWorkflowTest.php`
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\AiFlows`
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement`
+- Result:
+  - `OK (1 test, 32 assertions)` for the focused manual-loading workflow
+  - `OK (110 tests, 323 assertions)` for AiFlows
+  - `OK (101 tests, 495 assertions)` for Content Management
+- Environment note:
+  - PHP startup still warns about missing `oci8_12c` and `pdo_firebird`, but tests pass.
+
+## 2026-07-14 (ai flows phase 4 strategic outputs)
+
+### Context
+- Scope limited to marking saved GPT results as strategic outputs for an `Empresa` and consulting them from the admin area.
+- No market research seeder, Content Management migration, OpenAI integration, uploads or automatic document generation were implemented.
+
+### Changes made
+- Added `App\Services\AiFlows\AiFlowStrategicOutputService`.
+- Extended `App\Http\Livewire\Admin\AiFlows\AiFlowExecutionShow` with strategic-output marking state and action.
+- Extended `resources/views/livewire/admin/ai-flows/ai-flow-execution-show.blade.php` with the `Marcar como resultado estrategico` panel beside the latest saved result.
+- Added `App\Http\Livewire\Admin\AiFlows\AiFlowStrategicOutputIndex`.
+- Added strategic-output admin views under `resources/views/admin/ai-flows/strategic-outputs/`.
+- Added `resources/views/livewire/admin/ai-flows/ai-flow-strategic-output-index.blade.php`.
+- Added routes:
+  - `admin.ai-flow-strategic-outputs.index`
+  - `admin.ai-flow-strategic-outputs.show`
+- Updated AI Flows navigation active state and internal admin links.
+- Added `tests/Feature/AiFlows/AiFlowStrategicOutputTest.php`.
+- Updated `ARCHITECTURE.md` with Phase 4 implementation details.
+
+### Rules implemented
+- Only results from completed execution stages can be marked.
+- Empty result content is rejected.
+- Supported types are:
+  - `strategic_report`
+  - `executive_summary`
+  - `current_strategic_base`
+- Marking creates a historical `ai_flow_strategic_outputs` row with copied content, title, source links, user and date.
+- The new output becomes current for its `empresa_id + type`.
+- Previous current outputs for the same `empresa_id + type` are set to `is_current = false`.
+- Outputs from other companies or other types are not affected.
+- Current-output control is transactional in service code and does not use a MySQL partial unique index.
+- Access remains Administrador-only through `AiFlowAccessService`.
+
+### Test execution
+- Executed:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\AiFlows`
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement`
+- Result:
+  - `OK (109 tests, 291 assertions)` for AiFlows
+  - `OK (101 tests, 495 assertions)` for Content Management
+- Environment note:
+  - PHP startup still warns about missing `oci8_12c` and `pdo_firebird`, but tests pass.
+
+## 2026-07-14 (ai flows phase 3C GPT results and step completion)
+
+### Context
+- Scope limited to copying the latest generated prompt, saving external GPT results, maintaining result history and completing execution stages.
+- No current strategic outputs, market research seeders, Content Management migration, OpenAI integration or automatic file generation were implemented.
+
+### Changes made
+- Added `App\Services\AiFlows\AiFlowStepResultService`.
+- Added `App\Services\AiFlows\AiFlowStepCompletionService`.
+- Extended `App\Http\Livewire\Admin\AiFlows\AiFlowExecutionShow` with:
+  - copy feedback for latest generated prompt
+  - result textarea state
+  - result saving action
+  - stage completion action
+  - latest result and historical result data
+- Rebuilt `resources/views/livewire/admin/ai-flows/ai-flow-execution-show.blade.php` to include:
+  - `Copiar prompt`
+  - external GPT result textarea
+  - `Guardar resultado`
+  - `Marcar etapa como completada`
+  - latest saved result
+  - collapsible result history
+- Added `tests/Feature/AiFlows/AiFlowStepResultCompletionTest.php`.
+- Updated `ARCHITECTURE.md` with the Phase 3C implementation state.
+
+### Rules implemented
+- Copying a prompt uses Alpine and `navigator.clipboard` when available.
+- Copy action shows local feedback and does not modify the database.
+- GPT result saving requires non-empty text.
+- Result saving requires an existing prompt generation.
+- Results are associated to the latest generation of the stage.
+- Multiple result rows are allowed and shown historically.
+- Completing a stage requires at least one saved result.
+- Completing a stage sets `status = completed`, `completed_by` and `completed_at`.
+- When all stages are completed, the parent execution becomes `completed`.
+- Blocked stages reject result saving and completion server-side.
+- Completing a stage recalculates downstream availability because `blocked` remains derived, not persisted.
+- Output variables resolve from the latest saved result of the configured source step inside the same execution.
+- Output variables without available source result still fail prompt generation with a clear message.
+
+### Test execution
+- Executed:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\AiFlows`
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement`
+- Result:
+  - `OK (96 tests, 258 assertions)` for AiFlows
+  - `OK (101 tests, 495 assertions)` for Content Management
+- Environment note:
+  - PHP startup still warns about missing `oci8_12c` and `pdo_firebird`, but tests pass.
+
+## 2026-07-14 (ai flows phase 3B dynamic variables and prompt rendering)
+
+### Context
+- Scope limited to dynamic variable forms in execution detail, saving execution values, rendering final prompts and storing prompt generation history.
+- No advanced copy tracking, GPT result saving, stage completion, strategic outputs, market research seeders or Content Management migration were implemented.
+
+### Changes made
+- Added `App\Services\AiFlows\AiFlowPromptRenderService`.
+- Extended `App\Http\Livewire\Admin\AiFlows\AiFlowExecutionShow` with:
+  - dynamic variable value hydration
+  - variable saving per execution step
+  - prompt generation action
+  - local step messages/errors
+  - latest generation/history data
+- Updated `resources/views/livewire/admin/ai-flows/ai-flow-execution-show.blade.php` with:
+  - dynamic input/textarea rendering
+  - output variable notices
+  - `Guardar variables`
+  - `Generar prompt` / `Regenerar prompt`
+  - latest prompt readonly textarea
+  - collapsible generation history
+- Added `tests/Feature/AiFlows/AiFlowPromptExecutionTest.php`.
+- Updated `ARCHITECTURE.md` with the Phase 3B implementation state.
+
+### Rules implemented
+- Prompt rendering uses the execution step's frozen `AiFlowStep.base_prompt`.
+- Placeholders are replaced exactly using configured variables.
+- Textarea line breaks are preserved.
+- Missing required variables block generation.
+- Unconfigured prompt variables block generation.
+- Output variables are prepared through latest source-step result lookup and block generation when no result exists.
+- Prompt generation creates a new `ai_flow_step_generations` row every time.
+- `variables_snapshot_json` stores variable name, label, scope, source and value used.
+- Generating a prompt moves a step from `pending` to `in_progress`.
+- Saved variable values persist in `ai_flow_execution_values` with `filled_by` and `filled_at`.
+- Saving variables updates the logical existing value for the same execution/variable/scope instead of creating duplicates.
+- Blocked stages do not show editable variable forms and reject prompt actions server-side.
+- Only Administrador users can access execution prompt actions.
+
+### Test execution
+- Executed:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\AiFlows`
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement`
+- Result:
+  - `OK (84 tests, 232 assertions)` for AiFlows
+  - `OK (101 tests, 495 assertions)` for Content Management
+- Environment note:
+  - PHP startup still warns about missing `oci8_12c` and `pdo_firebird`, but tests pass.
+
+## 2026-07-14 (ai flows phase 3A base executions)
+
+### Context
+- Scope limited to creating executions of published AI flows for an `Empresa` and displaying read-only base progress by stage.
+- No dynamic variable execution forms, final prompt rendering, prompt copy action, GPT result saving, strategic outputs, market research seeders or Content Management migration were implemented.
+
+### Changes made
+- Added `App\Services\AiFlows\AiFlowExecutionService`.
+- Added Livewire 2 components:
+  - `App\Http\Livewire\Admin\AiFlows\AiFlowExecutionIndex`
+  - `App\Http\Livewire\Admin\AiFlows\AiFlowExecutionForm`
+  - `App\Http\Livewire\Admin\AiFlows\AiFlowExecutionShow`
+- Added routes:
+  - `admin.ai-flow-executions.index`
+  - `admin.ai-flow-executions.create`
+  - `admin.ai-flow-executions.show`
+- Added Blade wrapper views under `resources/views/admin/ai-flows/executions/`.
+- Added Livewire views for execution listing, creation and detail.
+- Updated AI Flows navigation access so the module exposes `Flujos` and `Ejecuciones`.
+- Added `tests/Feature/AiFlows/AiFlowExecutionBaseTest.php`.
+- Updated `ARCHITECTURE.md` with the Phase 3A implementation state.
+
+### Rules implemented
+- Only Administrador users can list, create and view executions.
+- Execution access and empresa access are checked through `AiFlowAccessService`.
+- Only active flows with a published version are offered in the creation UI.
+- Attempts to start a flow without a published version are rejected server-side.
+- Execution creation runs inside a DB transaction.
+- Created executions store:
+  - `empresa_id`
+  - `ai_flow_id`
+  - frozen `ai_flow_version_id`
+  - `title`
+  - `status = in_progress`
+  - `started_by`
+  - `started_at`
+- Active steps from the published version create `ai_flow_execution_steps` with `status = pending`.
+- Inactive version steps are not initialized.
+- `blocked` is visual only and is not stored in the database.
+- Blocked calculation:
+  - explicit dependencies require completed dependency execution steps
+  - steps without explicit dependencies use sequential dependency by position
+  - the first step without explicit dependencies is available as `Pendiente`
+
+### Test execution
+- Executed:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\AiFlows`
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement`
+- Result:
+  - `OK (73 tests, 199 assertions)` for AiFlows
+  - `OK (101 tests, 495 assertions)` for Content Management
+- Environment note:
+  - PHP startup still warns about missing `oci8_12c` and `pdo_firebird`, but tests pass.
+
+## 2026-07-14 (ai flows phase 2D variable configuration)
+
+### Context
+- Scope limited to configuring variables detected in active prompts of an AI flow version.
+- No client execution flow, dynamic execution forms, final prompt rendering, prompt copying, GPT result saving, market research seeders or Content Management migration were implemented.
+
+### Changes made
+- Extended `App\Http\Livewire\Admin\AiFlows\AiFlowVersionShow` with:
+  - variable synchronization from active step prompts
+  - variable edit form
+  - unused-variable detection
+  - invalid-token display for active prompts
+  - draft-only synchronization/editing
+- Updated `resources/views/livewire/admin/ai-flows/ai-flow-version-show.blade.php` with the `Variables del flujo` section.
+- Adjusted `App\Models\AiFlowVariable` so `output` variables require `source_step_id` but do not require `ai_flow_step_id`.
+- Added `tests/Feature/AiFlows/AiFlowVariableConfigurationTest.php`.
+- Updated `ARCHITECTURE.md` with the Phase 2D implementation state.
+
+### Rules implemented
+- Variables are synchronized only from valid placeholders in active prompts.
+- Synchronization creates missing variables and does not duplicate existing variables.
+- Synchronization does not delete configured variables that disappeared from prompts; those are shown as `No usada`.
+- New variable defaults:
+  - label generated from `name`
+  - `scope = global`
+  - `is_required = true`
+  - `position` by first appearance
+  - `input_type = textarea` for long-text hints, otherwise `input`
+- Variable `name` is not editable from the UI.
+- Draft versions can edit label, input type, scope, required flag, help text, placeholder, default value, position and scope-specific step references.
+- Published or archived versions are read-only for variable configuration.
+- `step` scope requires a step from the same version.
+- `output` scope requires a source step from the same version.
+- `global` scope clears step/source references.
+- Publication still uses `AiFlowVersionService`; missing configured variables block publication, synchronized/configured variables allow publication when the version is otherwise valid.
+
+### Test execution
+- Executed:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\AiFlows`
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement`
+- Result:
+  - `OK (62 tests, 167 assertions)` for AiFlows
+  - `OK (101 tests, 495 assertions)` for Content Management
+- Environment note:
+  - PHP startup still warns about missing `oci8_12c` and `pdo_firebird`, but tests pass.
+
+## 2026-07-14 (ai flows phase 2C basic step builder)
+
+### Context
+- Scope limited to the basic step builder inside an AI flow version detail screen.
+- No variable configuration, dynamic forms, client execution flow, final prompt rendering for executions, GPT result saving, market research seeders or Content Management migration were implemented.
+
+### Changes made
+- Extended `App\Http\Livewire\Admin\AiFlows\AiFlowVersionShow` with draft-only step creation, editing and active/inactive toggling.
+- Updated `resources/views/livewire/admin/ai-flows/ai-flow-version-show.blade.php` to include:
+  - step form
+  - broad `base_prompt` textarea
+  - detected variable preview
+  - invalid token preview
+  - ordered step list
+  - one optional dependency selector
+- Added `tests/Feature/AiFlows/AiFlowStepBuilderTest.php`.
+- Updated `ARCHITECTURE.md` with the Phase 2C implementation state.
+
+### Rules implemented
+- Only Administrador users can access the step builder through the existing admin-only routes/components.
+- Steps can be created or edited only while the version is `draft`.
+- Published or archived versions show a clear restriction and do not allow step edits.
+- `step_key` is unique per version and must be lowercase without spaces or accents.
+- `position` is required and unique per version.
+- Steps are not physically deleted in this phase; draft versions can toggle `is_active`.
+- Prompt preview uses `AiFlowVariableParser` and does not create variables automatically.
+- One explicit dependency can be selected from previous steps of the same version.
+- Dependencies pointing to another version, the same step or a later step are rejected.
+- Version publication still fails when active prompts contain detected variables that are not configured.
+
+### Test execution
+- Executed:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\AiFlows`
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement`
+- Result:
+  - `OK (52 tests, 139 assertions)` for AiFlows
+  - `OK (101 tests, 495 assertions)` for Content Management
+- Environment note:
+  - PHP startup still warns about missing `oci8_12c` and `pdo_firebird`, but tests pass.
+
+## 2026-07-14 (ai flows phase 2B admin UI)
+
+### Context
+- Scope limited to the basic administrative UI for listing, creating and editing AI flows, managing versions and publishing versions through existing services.
+- No complete step builder, prompt base editing, visual variable detection, variable configuration, client execution, dynamic forms, final prompt generation, market research seeders or Content Management migration were implemented.
+
+### Changes made
+- Added admin routes:
+  - `admin.ai-flows.index`
+  - `admin.ai-flows.create`
+  - `admin.ai-flows.edit`
+  - `admin.ai-flows.versions.index`
+  - `admin.ai-flows.versions.show`
+- Added Livewire 2 components:
+  - `App\Http\Livewire\Admin\AiFlows\AiFlowIndex`
+  - `App\Http\Livewire\Admin\AiFlows\AiFlowForm`
+  - `App\Http\Livewire\Admin\AiFlows\AiFlowVersionIndex`
+  - `App\Http\Livewire\Admin\AiFlows\AiFlowVersionShow`
+- Added Blade wrapper views under `resources/views/admin/ai-flows/`.
+- Added Livewire views under `resources/views/livewire/admin/ai-flows/`.
+- Added `Flujos IA` to desktop and responsive admin navigation with active state `admin.ai-flows*`.
+- Added feature tests for routes, admin-only access, create/edit flow, duplicate key validation, draft version creation, Spanish status labels, publication error display, successful publication and Content Management regression smoke coverage.
+
+### Rules implemented
+- Only Administrador users can access the module.
+- Flow creation validates required `name`, required unique `key`, and lowercase key without spaces or accents.
+- Flow editing updates `name`, `description` and `is_active`; deletion is not included.
+- Version creation uses the next incremental `version_number`.
+- Version publication is delegated to `AiFlowVersionService`.
+- Publication errors/warnings are displayed locally in Spanish.
+- Only one version remains `published` per flow after publication.
+
+### Test execution
+- Executed:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\AiFlows`
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement`
+- Result:
+  - `OK (39 tests, 105 assertions)` for AiFlows
+  - `OK (101 tests, 495 assertions)` for Content Management
+- Environment note:
+  - PHP startup still warns about missing `oci8_12c` and `pdo_firebird`, but tests pass.
+
+## 2026-07-14 (ai flows phase 2A parser and publication rules)
+
+### Context
+- Scope limited to the core parser, publication validation and publication service for the generic `Flujos IA` module.
+- No UI, Livewire components, dynamic forms, client execution flow, final prompt generation for executions, market research seeders or Content Management migration were implemented.
+
+### Changes made
+- Added `App\Services\AiFlows\AiFlowVariableParser`.
+- Added `App\Services\AiFlows\AiFlowVersionValidationService`.
+- Added `App\Services\AiFlows\AiFlowVersionService`.
+- Added automated tests for parser, version validation and publication rules.
+
+### Parser rules implemented
+- Detects placeholders using `{{nombre_variable}}`.
+- Accepts only snake_case variable names:
+  - lowercase
+  - starts with a letter
+  - numbers allowed after letters
+  - underscores allowed
+  - no spaces, accents, uppercase or special characters
+- Keeps valid variables in first-appearance order.
+- Ignores duplicate valid variables.
+- Reports invalid tokens, including empty placeholders.
+
+### Publication rules implemented
+- Version must be `draft`.
+- Version must have at least one active step.
+- Active steps must have non-empty `base_prompt`.
+- Valid placeholders must have configured variables.
+- Invalid prompt tokens block publication.
+- Configured unused variables generate warnings, not errors.
+- Output variables require `source_step_id`.
+- Output variables and step dependencies must reference steps from the same version.
+- Publication runs inside a DB transaction.
+- Previous `published` versions of the same flow are archived so only one remains published.
+- `published_at` and `published_by` are recorded.
+- A basic edit-protection method blocks editing published versions with historical executions.
+
+### Test execution
+- Executed:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\AiFlows`
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement`
+- Result:
+  - `OK (27 tests, 71 assertions)` for AiFlows
+  - `OK (101 tests, 495 assertions)` for Content Management
+- Environment note:
+  - PHP startup still warns about missing `oci8_12c` and `pdo_firebird`, but tests pass.
+
+## 2026-07-14 (ai flows phase 1 persistence)
+
+### Context
+- Scope limited to Phase 1 of the generic `Flujos IA` module.
+- Implemented only persistence base, Eloquent models, relationships, constants, labels, admin-only access service and structural tests.
+- No visual UI, Livewire administration components, flow execution UI, dynamic forms, prompt rendering, parser, market research seeder or Content Management migration were implemented.
+
+### Changes made
+- Added migration:
+  - `database/migrations/2026_07_14_120000_create_ai_flows_module_tables.php`
+- Added tables:
+  - `ai_flows`
+  - `ai_flow_versions`
+  - `ai_flow_steps`
+  - `ai_flow_step_dependencies`
+  - `ai_flow_variables`
+  - `ai_flow_executions`
+  - `ai_flow_execution_steps`
+  - `ai_flow_execution_values`
+  - `ai_flow_step_generations`
+  - `ai_flow_step_results`
+  - `ai_flow_strategic_outputs`
+- Added Eloquent models and relationships for the new tables.
+- Added `Empresa` and `User` relationships into the new AI Flows module.
+- Added `App\Services\AiFlows\AiFlowAccessService` with admin-only MVP access.
+- Added `App\Support\AiFlowLabels` for Spanish labels.
+- Added structural model validation for:
+  - snake_case variable names without spaces or accents
+  - global variables not attached to steps
+  - output source step usage only for output variables
+  - variable step/source step version consistency
+  - step dependency version consistency
+- Kept `blocked` as a future derived visual state, not persisted.
+- Kept the one-current-strategic-output rule as a future transactional service responsibility, not a MySQL partial unique index.
+
+### Test execution
+- Executed:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\AiFlows`
+- Result:
+  - `OK (8 tests, 32 assertions)`
+- Content Management regression executed:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement`
+- Content Management result:
+  - `OK (101 tests, 495 assertions)`
+- Environment note:
+  - PHP startup still warns about missing `oci8_12c` and `pdo_firebird`, but tests pass.
+
 ## 2026-07-13 (content management curation stepper item)
 
 ### Context

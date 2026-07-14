@@ -1,6 +1,6 @@
 # QITS - Project Architecture
 
-**Last Updated:** 2026-07-10  
+**Last Updated:** 2026-07-14  
 **Version:** 1.0  
 **Stack:** Laravel 8, Jetstream, Livewire, Tailwind CSS, MySQL  
 
@@ -48,6 +48,405 @@
 - Step 3 listens through `$listeners` and re-renders from the database so its blocking state reflects current drafting state.
 - Step cards render action success/error feedback inside the card where the action occurred, avoiding global alerts at the top of long scrolling views.
 - The operational detail includes a sticky anchor stepper rendered by the parent Livewire component. It uses stable section IDs for Step 1, Step 2, Step 3, final files and delivery/publication; it does not behave as tabs and does not alter component state.
+
+## AI Flows - Phase 1 Persistence
+
+- `Flujos IA` is a new generic module namespace for configurable prompt-based processes.
+- Phase 1 implementation state: persistence base, Eloquent models, relationships, labels, admin-only access service and structural tests.
+- No visual UI, Livewire administration components, dynamic forms, prompt rendering, seeders for market research, OpenAI integration or migration from Content Management are included yet.
+- MVP permissions are admin-only through the existing `User::isAdmin()` / `TipoUsuario` pattern:
+  - create/edit flows: Administrador
+  - execute flows: Administrador
+  - consult strategic outputs: Administrador
+- Tenant owner for executions and strategic outputs is `Empresa`.
+- Access rules are centralized in `App\Services\AiFlows\AiFlowAccessService`.
+- User-facing labels are centralized in `App\Support\AiFlowLabels`.
+- Tables created:
+  - `ai_flows`
+  - `ai_flow_versions`
+  - `ai_flow_steps`
+  - `ai_flow_step_dependencies`
+  - `ai_flow_variables`
+  - `ai_flow_executions`
+  - `ai_flow_execution_steps`
+  - `ai_flow_execution_values`
+  - `ai_flow_step_generations`
+  - `ai_flow_step_results`
+  - `ai_flow_strategic_outputs`
+- Version states:
+  - `draft`
+  - `published`
+  - `archived`
+- Execution states:
+  - `pending`
+  - `in_progress`
+  - `completed`
+  - `cancelled`
+- Execution step states:
+  - `pending`
+  - `in_progress`
+  - `completed`
+- `blocked` is intentionally not persisted in Phase 1; it remains a future visual/derived state from dependencies.
+- Variable scopes:
+  - `global`
+  - `step`
+  - `output`
+- Variable input types:
+  - `input`
+  - `textarea`
+- Strategic output types:
+  - `strategic_report`
+  - `executive_summary`
+  - `current_strategic_base`
+- Prompt and result bodies use `LONGTEXT`:
+  - `ai_flow_steps.base_prompt`
+  - `ai_flow_step_generations.final_prompt_text`
+  - `ai_flow_step_results.result_text`
+  - `ai_flow_strategic_outputs.content`
+- Each prompt generation and result is historical and independent; Phase 1 does not overwrite previous generations or results.
+- `ai_flow_step_generations.variables_snapshot_json` stores the future exact variable snapshot for prompt auditability.
+- Variable names must be snake_case without spaces or accents and are unique per `ai_flow_version_id`.
+- Step dependencies are persisted in `ai_flow_step_dependencies`; model-level validation prevents dependencies across different flow versions.
+- The rule "one current strategic output per empresa + type" is enforced by `App\Services\AiFlows\AiFlowStrategicOutputService` inside a DB transaction, not by a MySQL partial unique index.
+
+## AI Flows - Phase 2A Parser And Publication Rules
+
+- `App\Services\AiFlows\AiFlowVariableParser` detects prompt placeholders using `{{nombre_variable}}`.
+- Accepted variable names must match snake_case:
+  - lowercase only
+  - starts with a letter
+  - numbers allowed after letters
+  - underscores allowed
+  - no spaces
+  - no accents
+  - no special characters
+- The parser returns:
+  - `variables`: valid unique variables in first-appearance order
+  - `invalid_tokens`: invalid placeholder tokens detected in the prompt
+- Duplicate valid variables are ignored after first appearance.
+- Empty placeholders such as `{{}}` are treated as invalid tokens.
+- `App\Services\AiFlows\AiFlowVersionValidationService` validates whether a version can be published.
+- Publication validation rules implemented:
+  - version must be `draft`
+  - version must have at least one active step
+  - every active step must have non-empty `base_prompt`
+  - every valid variable detected in active prompts must exist in `ai_flow_variables`
+  - configured variable names must remain valid
+  - configured variables no longer used in active prompts return warnings, not errors
+  - invalid prompt tokens return errors
+  - output variables require `source_step_id`
+  - output `source_step_id` must belong to the same version
+  - variable step associations must belong to the same version
+  - step dependencies must reference steps from the same version
+- `App\Services\AiFlows\AiFlowVersionService` publishes a valid draft version inside a DB transaction.
+- Publication behavior:
+  - validation errors abort publication
+  - selected version becomes `published`
+  - `published_at` and `published_by` are recorded
+  - previous `published` versions of the same flow are moved to `archived`
+  - only one `published` version remains per flow after successful publication
+- A basic edit-protection method prevents editing a published version that already has historical executions.
+
+## AI Flows - Phase 2B Admin UI
+
+- Current admin UI scope is intentionally minimal and does not include variable configuration, dynamic forms, client executions or prompt rendering for executions.
+- Routes added:
+  - `GET /admin/ai-flows` named `admin.ai-flows.index`
+  - `GET /admin/ai-flows/create` named `admin.ai-flows.create`
+  - `GET /admin/ai-flows/{flow}/edit` named `admin.ai-flows.edit`
+  - `GET /admin/ai-flows/{flow}/versions` named `admin.ai-flows.versions.index`
+  - `GET /admin/ai-flows/{flow}/versions/{version}` named `admin.ai-flows.versions.show`
+- Admin-only access is enforced in routes and Livewire components through the existing `User::isAdmin()` pattern.
+- Livewire 2 components added:
+  - `App\Http\Livewire\Admin\AiFlows\AiFlowIndex`
+  - `App\Http\Livewire\Admin\AiFlows\AiFlowForm`
+  - `App\Http\Livewire\Admin\AiFlows\AiFlowVersionIndex`
+  - `App\Http\Livewire\Admin\AiFlows\AiFlowVersionShow`
+- Blade wrapper views added under:
+  - `resources/views/admin/ai-flows/`
+- Livewire views added under:
+  - `resources/views/livewire/admin/ai-flows/`
+- Available screens:
+  - flow listing with active state, key, category placeholder and current published version
+  - create flow form
+  - edit flow form
+  - version listing with Spanish status labels and draft creation
+  - version detail with existing step list and publish action
+- Flow creation validates:
+  - required `name`
+  - required unique `key`
+  - key without spaces or accents, using lowercase letters, numbers, underscore or hyphen
+- Flow editing currently allows:
+  - `name`
+  - `description`
+  - `is_active`
+- Version creation uses the next incremental `version_number`; first version is `1`.
+- Publication actions call `App\Services\AiFlows\AiFlowVersionService`; controllers/routes do not publish directly.
+- Publication validation errors and warnings are shown on screen in Spanish.
+- Navigation now includes `Flujos IA` in desktop and responsive admin navigation with active state covering `admin.ai-flows*`, `admin.ai-flow-executions*` and `admin.ai-flow-strategic-outputs*`.
+
+## AI Flows - Phase 2C Basic Step Builder
+
+- The version detail screen now includes a basic step builder inside `App\Http\Livewire\Admin\AiFlows\AiFlowVersionShow`.
+- Scope remains limited to draft version structure; it does not configure variables, execute flows, render final execution prompts, save GPT results or seed the market research flow.
+- Administrador-only access continues through the existing route middleware and Livewire checks.
+- Draft versions can create and edit steps with:
+  - `step_key`
+  - `name`
+  - `description`
+  - `position`
+  - `recommended_gpt`
+  - `expected_output_name`
+  - `base_prompt`
+  - `is_active`
+- `step_key` is unique per version and must use lowercase letters, numbers, underscore or hyphen, without spaces or accents.
+- Step `position` is required and unique per version.
+- Published or archived versions cannot create, edit or activate/inactivate steps from the UI.
+- Steps are not physically deleted in this phase; draft versions can only toggle `is_active`.
+- The step list is ordered by `position` and shows:
+  - position
+  - name
+  - step key
+  - recommended GPT
+  - expected output
+  - count of valid variables detected in `base_prompt`
+  - count of invalid placeholder tokens detected in `base_prompt`
+  - active/inactive state
+- Prompt preview uses `App\Services\AiFlows\AiFlowVariableParser`.
+- The preview only detects variables and invalid tokens; it does not create or update `ai_flow_variables`.
+- The UI supports one optional explicit dependency per step through `depends_on_step_id`.
+- Dependency rules in this phase:
+  - dependency must reference a step from the same flow version
+  - dependency must reference an earlier position
+  - dependency cannot reference the same step
+  - no dependency creates no explicit row; future execution can still derive sequential dependency by order
+- Explicit dependencies are stored in `ai_flow_step_dependencies`, preserving the table's future support for multiple dependencies.
+- Publication still uses `App\Services\AiFlows\AiFlowVersionService`; versions with detected variables that are not configured in `ai_flow_variables` fail publication as designed.
+
+## AI Flows - Phase 2D Variable Configuration
+
+- The version detail screen now includes a `Variables del flujo` section inside `App\Http\Livewire\Admin\AiFlows\AiFlowVersionShow`.
+- Scope remains limited to variable synchronization/configuration for draft versions; it does not execute flows, render final execution prompts, copy prompts, save GPT results or seed the market research flow.
+- Variable synchronization behavior:
+  - parses all active step prompts in version order using `App\Services\AiFlows\AiFlowVariableParser`
+  - creates missing `ai_flow_variables` for valid detected placeholders
+  - does not delete existing variables
+  - does not duplicate variables already configured for the version
+  - visually marks configured variables that no longer appear in active prompts as `No usada`
+  - displays invalid placeholder tokens found in active prompts
+- Variable names are not editable from the UI; they come from detected placeholders.
+- New variables are created with suggested defaults:
+  - `label`: generated from the variable name by replacing `_` with spaces and capitalizing the first letter
+  - `scope`: `global`
+  - `is_required`: `true`
+  - `position`: first-appearance order in active prompts
+  - `input_type`: `textarea` when the variable name contains one of the long-text hints; otherwise `input`
+- Long-text input hints currently include:
+  - `objetivo`
+  - `observaciones`
+  - `descripcion`
+  - `publico`
+  - `servicios`
+  - `competidores`
+  - `canales`
+  - `restricciones`
+  - `temporadas`
+  - `brief`
+  - `informacion`
+  - `sitemap`
+  - `contexto`
+- Draft versions can edit:
+  - `label`
+  - `input_type`
+  - `scope`
+  - `is_required`
+  - `help_text`
+  - `placeholder`
+  - `default_value`
+  - `position`
+  - `ai_flow_step_id` for `step` scope
+  - `source_step_id` for `output` scope
+- Published or archived versions render variable configuration as read-only and block synchronization/edit actions.
+- Scope validation rules:
+  - `global` clears/ignores `ai_flow_step_id` and `source_step_id`
+  - `step` requires `ai_flow_step_id` from the same version
+  - `output` requires `source_step_id` from the same version
+- `App\Models\AiFlowVariable` enforces structural integrity for variable names and same-version step references.
+- Publication remains delegated to `App\Services\AiFlows\AiFlowVersionService`; after variables are synchronized/configured and validation passes, a draft version can be published.
+
+## AI Flows - Phase 3A Base Executions
+
+- The module now supports creating base executions of a published AI flow for an `Empresa`.
+- Scope remains limited to execution creation and read-only progress visualization; it does not include dynamic variable forms, final prompt rendering, prompt copy actions, GPT result saving, strategic outputs, market research seeders or Content Management migration.
+- Routes added:
+  - `GET /admin/ai-flow-executions` named `admin.ai-flow-executions.index`
+  - `GET /admin/ai-flow-executions/create` named `admin.ai-flow-executions.create`
+  - `GET /admin/ai-flow-executions/{execution}` named `admin.ai-flow-executions.show`
+- Livewire 2 components added:
+  - `App\Http\Livewire\Admin\AiFlows\AiFlowExecutionIndex`
+  - `App\Http\Livewire\Admin\AiFlows\AiFlowExecutionForm`
+  - `App\Http\Livewire\Admin\AiFlows\AiFlowExecutionShow`
+- Blade wrapper views added under:
+  - `resources/views/admin/ai-flows/executions/`
+- Livewire views added under:
+  - `resources/views/livewire/admin/ai-flows/`
+- `App\Services\AiFlows\AiFlowExecutionService` centralizes:
+  - resolving the current published version for an active flow
+  - creating executions inside a DB transaction
+  - initializing execution steps for active version steps
+  - calculating derived visual step status including `Bloqueada`
+- Execution creation rules:
+  - admin-only through `AiFlowAccessService`
+  - `empresa_id` is required and validated
+  - flow is required
+  - only active flows with a published version can be selected from the UI
+  - direct attempts to create an execution for a flow without a published version are rejected
+  - `title` is required
+- Execution initialization:
+  - creates `ai_flow_executions` with `status = in_progress`
+  - stores `empresa_id`, `ai_flow_id`, and the current published `ai_flow_version_id`
+  - stores `started_by` and `started_at`
+  - creates one `ai_flow_execution_steps` row for each active step in the published version
+  - each execution step starts as `pending`
+  - inactive version steps are not initialized
+- Executions are frozen to the `ai_flow_version_id` used at creation time; later published versions do not rewrite existing executions.
+- The detail screen shows base progress:
+  - empresa
+  - flow
+  - version
+  - title
+  - general status
+  - completed/total step count
+  - ordered stage cards
+- Visual step statuses:
+  - `Pendiente`
+  - `Bloqueada`
+  - `En proceso`
+  - `Completada`
+- `blocked` is not persisted. It is derived at runtime:
+  - if a step has explicit dependencies, all dependency execution steps must be completed
+  - if a step has no explicit dependencies, sequential dependency by position applies
+  - the first step without explicit dependencies is available as `Pendiente`
+- Navigation now exposes the executions area from the AI Flows module while keeping existing Content Management navigation unchanged.
+
+## AI Flows - Phase 3B Dynamic Variables And Prompt Rendering
+
+- The execution detail now supports filling variables for available stages and generating final prompts.
+- Scope remains limited to variable value entry, exact placeholder replacement and generation history; it does not include advanced copy tracking, GPT result saving, stage completion, strategic outputs, market research seeders or Content Management migration.
+- `App\Services\AiFlows\AiFlowPromptRenderService` renders and persists final prompts.
+- Prompt rendering rules:
+  - uses the `base_prompt` of the execution step's frozen `AiFlowStep`
+  - parses placeholders with `App\Services\AiFlows\AiFlowVariableParser`
+  - replaces only configured `{{variable}}` placeholders
+  - preserves textarea line breaks in inserted values
+  - does not alter prompt instructions beyond exact replacement
+  - does not invent missing data
+  - does not call AI or external services
+- Prompt generation persists one historical row per click in `ai_flow_step_generations`.
+- Each generation stores:
+  - `ai_flow_execution_step_id`
+  - `ai_flow_step_id`
+  - `final_prompt_text`
+  - `variables_snapshot_json`
+  - `generated_by`
+  - `generated_at`
+- `variables_snapshot_json` includes variable name, label, scope, source and value used at generation time.
+- Variable value resolution:
+  - `global`: value stored for the execution with `ai_flow_execution_step_id = null`
+  - `step`: value stored for the current execution step
+  - `output`: latest result from the configured source step; in this phase it is prepared and blocks generation when no source result exists
+- Prompt generation fails with a controlled Spanish message when:
+  - a required variable is empty
+  - a placeholder is not configured
+  - a configured output variable has no available source result
+  - the prompt contains invalid placeholder tokens
+- On successful generation, an execution step moves from `pending` to `in_progress`.
+- Regenerating creates a new historical generation and does not overwrite previous prompts.
+- The execution detail UI now renders dynamic fields per available step:
+  - `input` variables render as text inputs
+  - `textarea` variables render as textareas
+  - `help_text`, `placeholder` and `default_value` are shown/applied where configured
+  - output variables are shown as source notices, not editable fields
+- Variable values are saved in `ai_flow_execution_values` with `filled_by` and `filled_at`.
+- Saving values updates existing rows for the same execution, variable and scope-specific execution step instead of creating duplicate logical values.
+- Blocked stages keep the read-only blocked message and do not render editable forms.
+- Each step card shows local success/error feedback, latest generated prompt and a native collapsible generation history.
+
+## AI Flows - Phase 3C GPT Results And Step Completion
+
+- The execution detail now supports the manual operator loop after prompt generation:
+  - copy the latest generated prompt
+  - paste an external GPT result
+  - save the result historically
+  - mark the stage as completed
+- Scope remains limited to manual GPT result handling and stage completion; it does not include current strategic outputs, market research seeders, Content Management migration, OpenAI integration or automatic file generation.
+- Copy behavior:
+  - the latest generated prompt shows a `Copiar prompt` button
+  - it uses Alpine and `navigator.clipboard` when available
+  - if clipboard API is unavailable, the readonly textarea remains selectable
+  - copy feedback is local to the stage card
+  - copy does not write to the database
+- `App\Services\AiFlows\AiFlowStepResultService` centralizes GPT result persistence.
+- Result saving rules:
+  - requires non-empty result text
+  - requires at least one prompt generation for the stage
+  - associates the result to the latest `ai_flow_step_generations` row
+  - stores `ai_flow_execution_step_id`, `ai_flow_step_generation_id`, `result_text`, `saved_by`, and `saved_at`
+  - allows multiple historical results per stage
+- The execution detail shows:
+  - latest saved result
+  - collapsible result history
+  - local success/error messages per stage
+- `App\Services\AiFlows\AiFlowStepCompletionService` centralizes stage completion.
+- Stage completion rules:
+  - requires at least one saved result
+  - rejects blocked stages
+  - updates `ai_flow_execution_steps.status = completed`
+  - stores `completed_by` and `completed_at`
+  - runs inside a transaction
+- Execution completion rule:
+  - when all execution steps are completed, `ai_flow_executions.status` becomes `completed`
+  - `ai_flow_executions.completed_at` is set
+- Unlocking remains derived and not persisted:
+  - after a stage is completed, subsequent stage availability is recalculated from dependencies/sequence
+  - `blocked` is still a visual state only
+- Output variables now complete the Phase 3B preparation:
+  - `AiFlowPromptRenderService` resolves `output` variables from the latest saved result of the configured source step inside the same execution
+  - if no source result exists, generation fails with a clear controlled message
+
+## AI Flows - Phase 4 Strategic Outputs
+
+- The execution detail now allows marking a saved stage result as a reusable strategic output for the client.
+- Scope remains limited to manual strategic-output marking and consultation; it does not include market research seeders, Content Management migration, OpenAI integration, file uploads or automatic document generation.
+- `App\Services\AiFlows\AiFlowStrategicOutputService` centralizes strategic-output marking.
+- Strategic output marking rules:
+  - only results from completed execution stages can be marked
+  - empty results are rejected
+  - supported types are `strategic_report`, `executive_summary` and `current_strategic_base`
+  - each output stores empresa, execution, execution step, source result, type, title, content, current flag, marking user and marking date
+  - source result content is copied into `ai_flow_strategic_outputs.content` for historical reuse
+- Current-output rule:
+  - a new marked output becomes `is_current = true`
+  - previous current outputs for the same `empresa_id + type` are set to `is_current = false`
+  - outputs from other companies or other types are not affected
+  - this is handled in a DB transaction, not through a partial SQL index
+- Routes added:
+  - `GET /admin/ai-flow-strategic-outputs` named `admin.ai-flow-strategic-outputs.index`
+  - `GET /admin/ai-flow-strategic-outputs/{output}` named `admin.ai-flow-strategic-outputs.show`
+- Livewire 2 component added:
+  - `App\Http\Livewire\Admin\AiFlows\AiFlowStrategicOutputIndex`
+- Blade views added under:
+  - `resources/views/admin/ai-flows/strategic-outputs/`
+- Strategic-output screens show:
+  - company
+  - type label
+  - title
+  - flow and execution origin
+  - source stage
+  - marking user/date
+  - current status
+  - full content detail
+- Access remains MVP admin-only through `AiFlowAccessService`.
 
 ## 0. System Snapshot (AI Context)
 
@@ -1449,6 +1848,38 @@ GOOGLE_OAUTH_CLIENT_SECRET=...
 - **Monitoring:** Use Laravel Horizon (if installed) or check `storage/logs/`
 
 ---
+
+## Change Log (2026-07-14)
+
+### AI Flows Module - Phase 1
+- Added migration `2026_07_14_120000_create_ai_flows_module_tables.php`.
+- Added Eloquent models:
+  - `AiFlow`
+  - `AiFlowVersion`
+  - `AiFlowStep`
+  - `AiFlowStepDependency`
+  - `AiFlowVariable`
+  - `AiFlowExecution`
+  - `AiFlowExecutionStep`
+  - `AiFlowExecutionValue`
+  - `AiFlowStepGeneration`
+  - `AiFlowStepResult`
+  - `AiFlowStrategicOutput`
+- Added base relationships from `Empresa` and `User` into the new module.
+- Added `App\Services\AiFlows\AiFlowAccessService` with admin-only MVP access.
+- Added `App\Support\AiFlowLabels` for Spanish labels.
+- Implemented structural model rules for:
+  - variable names in snake_case without spaces or accents
+  - variable name uniqueness per flow version through DB constraint
+  - dependency steps belonging to the same flow version
+- Added automated tests for:
+  - core relationships
+  - long prompt/result persistence
+  - strategic output ownership
+  - variable uniqueness and name validation
+  - dependency version validation
+  - admin-only access service behavior
+- No UI, parser, dynamic forms, prompt rendering, seeders or Content Management migration were implemented in this phase.
 
 ## Change Log (2026-07-08)
 
