@@ -1,5 +1,51 @@
 # LOG
 
+## 2026-07-18 (ai flows UTF-8 UI text cleanup)
+
+### Context
+- Scope limited to correcting visible mojibake/UTF-8 text in the AI Flows module UI.
+- No business logic, database schema, migrations, prompt generation, execution services, dependencies, strategic outputs or Content Management functionality were changed.
+
+### Changes made
+- Updated `resources/views/livewire/admin/ai-flows/ai-flow-version-show.blade.php` to replace mojibake in visible Spanish UI text.
+- Added UTF-8 render assertions to `tests/Feature/AiFlows/AiFlowVariableConfigurationTest.php`.
+- Confirmed the main app layout already includes `<meta charset="utf-8">`; no duplicate charset metadata was added.
+
+### Text corrected
+- `versiÃ³n` to `versión`
+- `Ã‰xito` to `Éxito`
+- `invÃ¡lidos` to `inválidos`
+- `vacÃ­o` to `vacío`
+- `PosiciÃ³n` to `Posición`
+- `SÃ­` to `Sí`
+- `AÃºn` to `Aún`
+- `sincronizaciÃ³n` to `sincronización`
+- `Â·` to `·`
+
+### Validation
+- Static search in AI Flows paths no longer finds:
+  - `Ã`
+  - `Â`
+  - `�`
+  - `SÃ`
+  - `PosiciÃ`
+  - `versiÃ`
+  - `configuraciÃ`
+  - `descripciÃ`
+
+### Test execution
+- Attempted:
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\AiFlows\AiFlowVariableConfigurationTest.php`
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\AiFlows`
+  - `C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe vendor\bin\phpunit tests\Feature\ContentManagement`
+- Result:
+  - Focused AiFlows variable test file failed before assertions with `SQLSTATE[HY000] [2002]` because the MySQL testing connection was refused.
+  - Full AiFlows suite timed out after repeated DB connection errors.
+  - Full Content Management suite timed out after repeated DB connection errors.
+- Environment note:
+  - PHP startup still warns about missing `oci8_12c` and `pdo_firebird`.
+  - The DB connection failure is global to the testing environment in this run and not specific to the UTF-8 UI change.
+
 ## 2026-07-14 (ai flows phase 5A manual loading validation)
 
 ### Context

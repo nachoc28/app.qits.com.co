@@ -299,7 +299,7 @@
             <div>
                 <h4 class="font-semibold text-gray-900">Variables del flujo</h4>
                 <p class="mt-1 text-sm text-gray-500">
-                    Sincroniza y configura las variables detectadas en los prompts activos de esta versiÃ³n.
+                    Sincroniza y configura las variables detectadas en los prompts activos de esta versión.
                 </p>
             </div>
 
@@ -336,16 +336,16 @@
 
         @if (session()->has('ai_flow_variable_success'))
             <div class="mt-5 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-                <span class="font-semibold">Ã‰xito:</span> {{ session('ai_flow_variable_success') }}
+                <span class="font-semibold">Éxito:</span> {{ session('ai_flow_variable_success') }}
             </div>
         @endif
 
         @if(count($versionInvalidTokens) > 0)
             <div class="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-                <p class="font-semibold">Tokens invÃ¡lidos detectados en prompts activos:</p>
+                <p class="font-semibold">Tokens inválidos detectados en prompts activos:</p>
                 <div class="mt-2 flex flex-wrap gap-2">
                     @foreach($versionInvalidTokens as $invalidToken)
-                        <span class="rounded-full border border-red-200 bg-white px-2.5 py-1 font-mono text-xs text-red-800">{{ $invalidToken === '' ? 'vacÃ­o' : $invalidToken }}</span>
+                        <span class="rounded-full border border-red-200 bg-white px-2.5 py-1 font-mono text-xs text-red-800">{{ $invalidToken === '' ? 'vacío' : $invalidToken }}</span>
                     @endforeach
                 </div>
             </div>
@@ -400,7 +400,7 @@
                     </div>
 
                     <div>
-                        <label for="ai_flow_variable_position" class="text-sm font-medium text-gray-700">PosiciÃ³n</label>
+                        <label for="ai_flow_variable_position" class="text-sm font-medium text-gray-700">Posición</label>
                         <input
                             id="ai_flow_variable_position"
                             type="number"
@@ -458,7 +458,7 @@
                             >
                                 <option value="">Selecciona una etapa</option>
                                 @foreach($variableStepOptions as $stepOption)
-                                    <option value="{{ $stepOption['id'] }}">{{ $stepOption['position'] }} Â· {{ $stepOption['name'] }}</option>
+                                    <option value="{{ $stepOption['id'] }}">{{ $stepOption['position'] }} · {{ $stepOption['name'] }}</option>
                                 @endforeach
                             </select>
                             @error('variable_ai_flow_step_id')
@@ -478,7 +478,7 @@
                             >
                                 <option value="">Selecciona una etapa fuente</option>
                                 @foreach($variableStepOptions as $stepOption)
-                                    <option value="{{ $stepOption['id'] }}">{{ $stepOption['position'] }} Â· {{ $stepOption['name'] }}</option>
+                                    <option value="{{ $stepOption['id'] }}">{{ $stepOption['position'] }} · {{ $stepOption['name'] }}</option>
                                 @endforeach
                             </select>
                             @error('variable_source_step_id')
@@ -572,7 +572,7 @@
                         <th class="px-4 py-3">Tipo</th>
                         <th class="px-4 py-3">Alcance</th>
                         <th class="px-4 py-3">Obligatoria</th>
-                        <th class="px-4 py-3">PosiciÃ³n</th>
+                        <th class="px-4 py-3">Posición</th>
                         <th class="px-4 py-3">Uso</th>
                         <th class="px-4 py-3 text-right">Acciones</th>
                     </tr>
@@ -593,7 +593,7 @@
                                     Global
                                 @endif
                             </td>
-                            <td class="px-4 py-3 text-gray-700">{{ $variable->is_required ? 'SÃ­' : 'No' }}</td>
+                            <td class="px-4 py-3 text-gray-700">{{ $variable->is_required ? 'Sí' : 'No' }}</td>
                             <td class="px-4 py-3 text-gray-700">{{ $variable->position }}</td>
                             <td class="px-4 py-3">
                                 @if($row['is_used'])
@@ -616,7 +616,7 @@
                     @empty
                         <tr>
                             <td colspan="8" class="px-4 py-10 text-center text-gray-500">
-                                AÃºn no hay variables configuradas. Usa la sincronizaciÃ³n para crearlas desde los prompts activos.
+                                Aún no hay variables configuradas. Usa la sincronización para crearlas desde los prompts activos.
                             </td>
                         </tr>
                     @endforelse

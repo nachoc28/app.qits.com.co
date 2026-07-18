@@ -217,6 +217,28 @@ class AiFlowVariableConfigurationTest extends TestCase
         $this->assertSame(AiFlowVersion::STATUS_PUBLISHED, $version->fresh()->status);
     }
 
+    public function test_version_detail_renders_spanish_utf8_labels_without_mojibake(): void
+    {
+        $admin = $this->createUser('Administrador');
+        [$flow, $version] = $this->createDraftFlow($admin);
+        $this->createStep($version, [
+            'base_prompt' => 'Analiza {{pais}} y revisa {{Pais}}.',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(AiFlowVersionShow::class, ['flowId' => $flow->id, 'versionId' => $version->id])
+            ->call('syncVariables')
+            ->assertSee('versión')
+            ->assertSee('Posición')
+            ->assertSee('Sí')
+            ->assertSee('Tokens inválidos')
+            ->assertDontSee('versiÃ')
+            ->assertDontSee('PosiciÃ')
+            ->assertDontSee('SÃ')
+            ->assertDontSee('Ã')
+            ->assertDontSee('Â');
+    }
+
     /**
      * @return array{0: AiFlow, 1: AiFlowVersion}
      */
